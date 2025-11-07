@@ -1,0 +1,28 @@
+[workspace]
+channels = ["conda-forge"]
+name = "metaflowdemo"
+platforms = ["linux-aarch64"]
+version = "0.1.0"
+
+[tasks]
+
+[system-requirements]
+cuda = "13.0"
+
+[dependencies]
+python = ">=3.11,<3.13"
+cuda-version = "==13.0"
+
+[pypi-dependencies]
+metaflow = ">=2.19.4, <3"
+pylint = ">=4.0.2, <5"
+scikit-learn = ">=1.7.2, <2"
+xgboost = ">=3.1.1, <4"
+numpy = ">=2.3.4, <3"
+# Add torch dependencies
+torch = { version = "==2.9.0", index = "https://download.pytorch.org/whl/cu130" }
+torchvision = { version = "==0.24.0", index = "https://download.pytorch.org/whl/cu130" }
+zenml = { version = ">=0.91.0, <0.92", extras = ["server"] }
+tinygrad = ">=0.11.0, <0.12"
+tqdm = ">=4.67.1, <5"
+tiktoken = ">=0.12.0, <0.13"
