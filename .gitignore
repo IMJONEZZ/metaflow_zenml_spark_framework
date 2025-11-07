@@ -1,0 +1,11 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+.metaflow/*
+.zen/*
+checkpoints/*
+data/*
+docs/*
+tmp/*
+*.db
