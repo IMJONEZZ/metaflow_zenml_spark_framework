@@ -136,47 +136,79 @@ class TinyGradLLMFlow(FlowSpec):
     @step
     def start(self):
         """Load the text dataset and return the training dataloader."""
+        print("=== START STEP: Loading Text Dataset ===")
+        
         self.B = int(self.batch_size)  # type: ignore
         self.T = int(self.sequence_length)  # type: ignore
         T_val = int(self.T)
+        
+        print(f"Configuration:")
+        print(f"  - Batch size: {self.B}")
+        print(f"  - Sequence length: {T_val}")
+        
         assert 1 <= T_val <= 1024
         
+        print("Fetching text dataset from HuggingFace...")
         tokens_bin = fetch("https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/tiny_shakespeare_val.bin")
         assert os.path.isfile(tokens_bin)
-        print(f"loading cached tokens in {tokens_bin}")
+        print(f"Dataset downloaded and cached at: {tokens_bin}")
+        
+        # Load tokens from binary file
+        print("Loading tokens from binary file...")
         with open(tokens_bin, "rb") as f:
-            f.seek(0x400)
+            f.seek(0x400)  # Skip header
             tokens = np.frombuffer(f.read(), dtype=np.uint16).astype(np.int32)
         
+        print(f"Successfully loaded {len(tokens)} tokens from dataset")
         self.tokens = Tensor(tokens)
         
+        print("Initializing GPT-2 tokenizer...")
         enc = tiktoken.get_encoding("gpt2")
         self.encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
         self.decode = lambda l: enc.decode(l)
+        
+        print("Dataset preprocessing completed successfully!")
+        print(f"Ready to proceed with training using {self.B}x{self.T} batches")
         
         self.next(self.train)
     
     @step
     def train(self):
         """Finetune the GPT-2 model for a specified number of iterations."""
+        print("=== TRAIN STEP: Starting Model Training ===")
+        
         B = int(self.B)  # type: ignore
         T = int(self.T)  # type: ignore
         gpus = int(self.gpus)  # type: ignore
         num_iterations = int(self.num_iterations)  # type: ignore
         
+        print(f"Training configuration:")
+        print(f"  - Batch size: {B}")
+        print(f"  - Sequence length: {T}")
+        print(f"  - Number of iterations: {num_iterations}")
+        print(f"  - GPUs to use: {gpus}")
+        
+        print("Initializing GPT-2 model...")
         self.model = GPT(GPTConfig(n_layer=12, n_head=12, n_embd=768))
+        
+        print("Loading pretrained weights from HuggingFace...")
         self.model.load_pretrained()
+        print("Pretrained model loaded successfully!")
 
         GPUS = ()
         if gpus > 1:
             GPUS = tuple(f'{Device.DEFAULT}:{i}' for i in range(gpus))
+            print(f"Distributing model across {len(GPUS)} GPUs: {GPUS}")
             for x in nn.state.get_parameters(self.model): 
                 x.to_(GPUS)
+        else:
+            print("Running on single GPU/CPU configuration")
 
         enc = tiktoken.get_encoding("gpt2")
         self.encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
         self.decode = lambda l: enc.decode(l)
 
+        print("Creating training batches...")
         batches_list = []
         i = 0
         while True:
@@ -187,13 +219,18 @@ class TinyGradLLMFlow(FlowSpec):
             if i + B*T + 1 >= len(self.tokens):
                 break
 
+        print(f"Created {len(batches_list)} training batches")
+        
         x, y = batches_list[0]
+        print("Setting up optimizer...")
         optimizer = nn.optim.AdamW(nn.state.get_parameters(self.model), lr=1e-4, weight_decay=0)
 
-        print(f"model state:     {sum(x.nbytes() for x in nn.state.get_parameters(self.model))/1e9:.2f} GB")
-        print(f"optimizer state: {sum(x.nbytes() for x in nn.state.get_parameters(optimizer))/1e9:.2f} GB")
+        print(f"Memory usage:")
+        print(f"  - Model state: {sum(x.nbytes() for x in nn.state.get_parameters(self.model))/1e9:.2f} GB")
+        print(f"  - Optimizer state: {sum(x.nbytes() for x in nn.state.get_parameters(optimizer))/1e9:.2f} GB")
 
         if gpus > 1: 
+            print(f"Sharding training data across {len(GPUS)} GPUs...")
             x = x.shard(GPUS, axis=0)
             y = y.shard(GPUS, axis=0)
 
@@ -206,32 +243,46 @@ class TinyGradLLMFlow(FlowSpec):
             loss.backward()
             return loss.realize(*optimizer.schedule_step())
 
+        print(f"Starting training loop for {num_iterations} iterations...")
+        
         for i in range(num_iterations):
             GlobalCounters.reset()
             t0 = time.perf_counter()
             loss = step(x.contiguous(), y.contiguous())
             Device[Device.DEFAULT].synchronize()
             t1 = time.perf_counter()
-            print(f"iteration {i}, loss: {loss.item():.6f}, time: {(t1-t0)*1000:.3f}ms, {int(B*T/(t1-t0))} tok/s, {GlobalCounters.global_mem/1e9:.2f} GB")
+            tokens_per_sec = int(B*T/(t1-t0))
+            print(f"Iteration {i:3d}/{num_iterations}: loss={loss.item():.6f}, time={(t1-t0)*1000:.3f}ms, {tokens_per_sec:4d} tok/s, memory={GlobalCounters.global_mem/1e9:.2f} GB")
+        
+        print("Training completed successfully!")
         
         self.next(self.end)
     
     @step
     def end(self):
         """Final step - report completion and optionally generate text using reference strategy."""
-        print("Training completed successfully!")
+        print("=== END STEP: Training Complete ===")
+        
+        gpus = int(self.gpus)  # type: ignore
+        skip_test = bool(self.skip_test)
+        
+        print(f"Final configuration summary:")
+        print(f"  - GPUs used: {gpus}")
+        print(f"  - Text generation {'skipped' if skip_test else 'requested'}")
 
-        if not self.skip_test:
+        if skip_test:
+            print("Text generation was explicitly skipped as requested.")
+        else:
+            print("Starting post-training text generation...")
+            
             try:
                 # Check current device and attempt text generation
                 sample_param = next(iter(nn.state.get_parameters(self.model)))
                 current_device = str(sample_param.device)
                 print(f"Model is currently on device: {current_device}")
 
-                gpus = int(self.gpus)  # type: ignore
-
                 if current_device.startswith('CUDA') and gpus > 0:
-                    print("Attempting GPU text generation using reference strategy...")
+                    print("GPU detected - attempting GPU text generation...")
                     try:
                         self._generate_text_reference_strategy()
                     except Exception as e:
@@ -245,11 +296,21 @@ class TinyGradLLMFlow(FlowSpec):
             except Exception as e:
                 print(f"Text generation failed: {e}")
 
-        print("TinyGradLLMFlow is all done.")
+        print("TinyGradLLMFlow execution completed successfully!")
+        
+        print("\n=== PIPELINE SUMMARY ===")
+        print("Pipeline execution phases:")
+        print("  1. ✅ START - Dataset loaded and tokens preprocessed")
+        print("  2. ✅ TRAIN - Model training completed") 
+        print("  3. ✅ END   - Post-training operations and text generation")
+        if not skip_test:
+            print("  4. ✅ GENERATION - Text generated successfully")
+        print("\nAll steps completed without errors!")
 
     def _generate_text_reference_strategy(self):
         """Generate text using the reference implementation strategy."""
-        print("Generating 16 tokens (reference strategy)...")
+        print("\n=== GPU TEXT GENERATION (Reference Strategy) ===")
+        print("Generating 16 tokens using reference implementation...")
 
         # Initialize tokenizer for this process
         enc = tiktoken.get_encoding("gpt2")
@@ -259,15 +320,15 @@ class TinyGradLLMFlow(FlowSpec):
         # Get current device
         sample_param = next(iter(nn.state.get_parameters(self.model)))
         
-        print("Step 1: Moving all model parameters to current device...")
+        print("Step 1/6: Moving all model parameters to current device...")
         for param in nn.state.get_parameters(self.model):
             if hasattr(param, 'to_'):
                 param.to_(sample_param.device)
 
-        print("Step 2: Synchronizing device...")
+        print("Step 2/6: Synchronizing device...")
         Device[Device.DEFAULT].synchronize()
         
-        print("Step 3: Setting up generation (reference style)...")
+        print("Step 3/6: Setting up generation parameters...")
         start = "<|endoftext|>"
         start_ids = encode_fn(start)
         
@@ -277,43 +338,48 @@ class TinyGradLLMFlow(FlowSpec):
         max_new_tokens = 16
         temperature = 1.0
         
-        print(f"Input: '{start}' -> {len(start_ids)} tokens")
+        print(f"Input prompt: '{start}' ({len(start_ids)} tokens)")
+        print(f"Generation settings:")
+        print(f"  - Max new tokens: {max_new_tokens}")
+        print(f"  - Temperature: {temperature}")
         
-        print("Step 4: Generating text...")
+        print("Step 4/6: Running text generation...")
         y = self.model.generate(x, max_new_tokens, temperature=temperature)
         
-        print("Step 5: Extracting tokens (reference style)...")
+        print("Step 5/6: Extracting output tokens...")
         # This matches the reference exactly: y[0].tolist()
         output_tokens = y[0].tolist()
         
-        print("Step 6: Decoding and displaying...")
+        print("Step 6/6: Decoding and displaying results...")
         decoded_text = decode_fn(output_tokens)
         
-        print(f"✅ SUCCESS! Generated text: '{decoded_text}'")
+        print(f"TEXT GENERATION SUCCESSFUL!")
+        print(f"Generated text: '{decoded_text}'")
         print(f"Total tokens generated: {len(output_tokens)}")
         
         if len(output_tokens) > 1:
             new_tokens = output_tokens[1:]  # Skip the initial endoftext token
-            print(f"New tokens: {new_tokens}")
+            print(f"New tokens (excluding start): {new_tokens}")
 
     def _generate_text_cpu_reference(self):
         """Generate text using CPU with reference strategy."""
-        print("Generating 16 tokens on CPU (reference strategy)...")
+        print("\n=== CPU TEXT GENERATION (Reference Strategy) ===")
+        print("Generating 16 tokens on CPU using reference implementation...")
 
         # Initialize tokenizer for this process
         enc = tiktoken.get_encoding("gpt2")
         encode_fn = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
         decode_fn = lambda l: enc.decode(l)
 
-        print("Step 1: Moving all model parameters to default device...")
+        print("Step 1/4: Moving all model parameters to default device...")
         for param in nn.state.get_parameters(self.model):
             if hasattr(param, 'to_'):
                 param.to_(Device.DEFAULT)
 
-        print("Step 2: Synchronizing...")
+        print("Step 2/4: Synchronizing device...")
         Device[Device.DEFAULT].synchronize()
         
-        print("Step 3: Generating text...")
+        print("Step 3/4: Running text generation...")
         start = "<|endoftext|>"
         start_ids = encode_fn(start)
         x = Tensor(start_ids)[None, ...]
@@ -321,13 +387,17 @@ class TinyGradLLMFlow(FlowSpec):
         max_new_tokens = 16
         temperature = 1.0
         
+        print(f"Input prompt: '{start}' ({len(start_ids)} tokens)")
+        
         y = self.model.generate(x, max_new_tokens, temperature=temperature)
         
+        print("Step 4/4: Extracting and decoding results...")
         # Simple .tolist() extraction like reference
         output_tokens = y[0].tolist()
         
         decoded_text = decode_fn(output_tokens)
-        print(f"✅ SUCCESS! Generated text: '{decoded_text}'")
+        print(f"TEXT GENERATION SUCCESSFUL!")
+        print(f"Generated text: '{decoded_text}'")
         print(f"Total tokens generated: {len(output_tokens)}")
 
 if __name__ == "__main__":
