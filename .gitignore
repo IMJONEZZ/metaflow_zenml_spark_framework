@@ -9,3 +9,5 @@ data/*
 docs/*
 tmp/*
 *.db
+
+*__pycache__*
