@@ -11,16 +11,18 @@ Usage:
     python nlp_pipeline_zenml_simple.py
 """
 
-from datetime import datetime
-from typing import Dict, List
+from typing import Annotated, Any, Dict, List
 
 # ZenML imports
-from zenml import pipeline as zenml_pipeline
-from zenml import step
+from zenml import log_metadata, pipeline as zenml_pipeline, step
+from zenml.types import HTMLString
+
+# Local imports
+from nlp_html_utils import generate_nlp_html_report
 
 
 @step(enable_cache=True)
-def generate_text_samples(num_samples: int = 10) -> List[str]:
+def generate_text_samples(num_samples: int = 10) -> Annotated[List[str], "text_samples"]:
     """Generate sample texts for processing."""
 
     # Simple text samples
@@ -66,7 +68,7 @@ def generate_text_samples(num_samples: int = 10) -> List[str]:
 
 
 @step(enable_cache=False)
-def analyze_texts(texts: List[str]) -> Dict:
+def analyze_texts(texts: List[str]) -> Annotated[Dict[str, Any], "analysis_results"]:
     """Simple analysis of text samples."""
 
     results = {
@@ -103,41 +105,23 @@ def analyze_texts(texts: List[str]) -> Dict:
 
 @step(enable_cache=False)
 def extract_and_display_results(
-    analysis_data: Dict,
-) -> None:
-    """Extract values from analysis results and display them."""
+    texts: List[str],
+    analysis_data: Dict[str, Any],
+) -> Annotated[HTMLString, "html_report"]:
+    """Create an HTML visualization of the NLP analysis results and log metadata."""
 
-    # Handle different possible types of analysis_data
-    try:
-        # Try to get the actual data using getattr for safer access
-        if "StepArtifact" in str(type(analysis_data)):
-            # This is a StepArtifact - use getattr to avoid static analysis issues
-            results = getattr(analysis_data, "value", None)
-            if results is None:
-                print("Error: Could not extract value from StepArtifact")
-                return
-        else:
-            # Assume it's already a dict or convertable to one
-            results = analysis_data
+    # Extract values from analysis results
+    sample_count = int(analysis_data.get("sample_count", 0))
+    avg_length = int(analysis_data.get("avg_length", 0))
+    total_chars = int(analysis_data.get("total_chars", 0))
+    positive_samples = int(analysis_data.get("positive_samples", 0))
+    negative_samples = int(analysis_data.get("negative_samples", 0))
+    neutral_samples = int(analysis_data.get("neutral_samples", 0))
 
-        # Ensure we have a dictionary-like object
-        if not hasattr(results, "get"):
-            print(
-                f"Error: Results object doesn't support dict-like access. Type: {type(results)}"
-            )
-            return
-
-        # Safely get values with defaults
-        sample_count = int(results.get("sample_count", 0))
-        avg_length = int(results.get("avg_length", 0))
-        total_chars = int(results.get("total_chars", 0))
-        positive_samples = int(results.get("positive_samples", 0))
-        negative_samples = int(results.get("negative_samples", 0))
-        neutral_samples = int(results.get("neutral_samples", 0))
-
-    except (AttributeError, TypeError, ValueError) as e:
-        print(f"Error processing analysis results: {e}")
-        return
+    # Calculate percentages
+    pos_pct = (positive_samples / sample_count * 100) if sample_count > 0 else 0.0
+    neg_pct = (negative_samples / sample_count * 100) if sample_count > 0 else 0.0
+    neutral_pct = (neutral_samples / sample_count * 100) if sample_count > 0 else 0.0
 
     # Display the results
     print("\n" + "=" * 50)
@@ -154,13 +138,37 @@ def extract_and_display_results(
     print(f"   Negative: {negative_samples}")
     print(f"   Neutral: {neutral_samples}")
 
-    if sample_count > 0:
-        pos_pct = (positive_samples / sample_count) * 100
-        neg_pct = (negative_samples / sample_count) * 100
-        print(f"   Positive %: {pos_pct:.1f}%")
-        print(f"   Negative %: {neg_pct:.1f}%")
+    # Log metadata with all the analysis values
+    log_metadata(
+        metadata={
+            "text_analysis": {
+                "sample_count": sample_count,
+                "avg_length": avg_length,
+                "total_chars": total_chars,
+            },
+            "sentiment_distribution": {
+                "positive_samples": positive_samples,
+                "negative_samples": negative_samples,
+                "neutral_samples": neutral_samples,
+                "positive_percentage": round(pos_pct, 2),
+                "negative_percentage": round(neg_pct, 2),
+                "neutral_percentage": round(neutral_pct, 2),
+            }
+        },
+    )
 
-    print("\n✅ NLP analysis completed successfully!")
+    return HTMLString(generate_nlp_html_report(
+        texts=texts,
+        sample_count=sample_count,
+        avg_length=avg_length,
+        total_chars=total_chars,
+        positive_samples=positive_samples,
+        negative_samples=negative_samples,
+        neutral_samples=neutral_samples,
+        pos_pct=pos_pct,
+        neg_pct=neg_pct,
+        neutral_pct=neutral_pct,
+    ))
 
 
 @zenml_pipeline
@@ -175,7 +183,7 @@ def simple_nlp_pipeline(num_samples: int = 10) -> None:
     analysis_results = analyze_texts(texts)
 
     # Display results - pass the artifact directly to extraction step
-    extract_and_display_results(analysis_data=analysis_results)
+    html_report = extract_and_display_results(texts=texts, analysis_data=analysis_results)
 
 
 if __name__ == "__main__":
