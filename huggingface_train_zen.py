@@ -167,9 +167,6 @@ def train_model(dataset: Dataset) -> str:
     # Add data collator
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
-    print("Emptying cache to make sure we're good for the train step")
-    torch.cuda.empty_cache()
-
     print("Creating trainer...")
 
     trainer = Trainer(
