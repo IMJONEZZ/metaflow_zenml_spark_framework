@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "collection_time": "2025-11-14T16:58:20.262063",
+    "script_version": "1.0",
+    "system_name": "DGX Spark"
+  },
+  "information": {
+    "system": {
+      "name": "NVIDIA DGX Spark",
+      "platform": "Linux-6.11.0-1016-nvidia-aarch64-with-glibc2.39",
+      "hostname": "spark-eee9",
+      "architecture": [
+        "64bit",
+        "ELF"
+      ],
+      "processor": "aarch64"
+    },
+    "cpu": {
+      "physical_cores": 20,
+      "logical_cores": 20,
+      "frequency_max_mhz": 3387.8
+    },
+    "memory": {
+      "total_gb": 119.7,
+      "available_gb": 112.95,
+      "used_percent": 5.6
+    },
+    "gpu": {
+      "count": 1,
+      "devices": []
+    },
+    "pytorch": {
+      "version": "2.9.0+cu130",
+      "cuda_available": true,
+      "cuda_version": "13.0",
+      "device_count": 1,
+      "current_device": 0,
+      "devices": [
+        {
+          "name": "NVIDIA GB10",
+          "major": 12,
+          "minor": 1,
+          "total_memory_gb": 119.7,
+          "multi_processor_count": 48
+        }
+      ]
+    }
+  }
+}

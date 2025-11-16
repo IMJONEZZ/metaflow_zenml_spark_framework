@@ -1,0 +1,30 @@
+{
+  "demo_type": "zenml",
+  "timestamp": "2025-11-15T14:07:24.468210",
+  "output_dir": "./demo_results",
+  "results": {
+    "gpu_benchmark_standalone": {
+      "status": "success",
+      "output": {
+        "stdout": "Running ZenML-style Benchmark with config: {'benchmark_type': 'gpu', 'duration': 5}\n\ud83d\ude80 DGX Spark Benchmark Pipeline (ZenML-style)\n============================================================\n\ud83c\udfae Running GPU Benchmarks...\n  \u2022 GPU matrix computation (1024x1024, 3 iterations)...\n  \u2022 GPU memory bandwidth (3 iterations)...\n\n================================================================================\n\ud83d\ude80 DGX SPARK GPU BENCHMARK RESULTS (ZenML-style)\n================================================================================\nSystem: DGX Spark (1 GPU(s))\nPlatform: Linux-6.11.0-1016-nvidia-aarch64-with-glibc2.39\nCPU: 20 cores\nMemory: 119.7 GB\nGPU: NVIDIA GB10\nCUDA Version: 13.0\n\n\ud83c\udfae GPU Benchmarks (2 results)\n  \u2022 gpu_matrix_computation: 1372.41 GFLOPS\n    Range: 15.8-2065.4 GFLOPS\n  \u2022 gpu_memory_bandwidth: 12359.4 MB/s (H->D)\n    D->H: 5849.2 MB/s\n\n\u2705 ZenML-style Benchmark Complete! Total: 2 benchmarks\n\n\ud83d\udcbe Results saved to ./demo_results/zenml_gpu_results.json\n",
+        "stderr": "/home/imjonezz/Desktop/metaflowdemo/.pixi/envs/default/lib/python3.12/site-packages/torch/cuda/__init__.py:283: UserWarning: \n    Found GPU0 NVIDIA GB10 which is of cuda capability 12.1.\n    Minimum and Maximum cuda capability supported by this version of PyTorch is\n    (8.0) - (12.0)\n    \n  warnings.warn(\n",
+        "returncode": 0
+      },
+      "script": "gpu_benchmark_standalone.py",
+      "args": [
+        "--config",
+        "{\"benchmark_type\": \"gpu\", \"duration\": 5}",
+        "--save-results",
+        "./demo_results/zenml_gpu_results.json"
+      ]
+    }
+  },
+  "summary": {
+    "total_demos": 1,
+    "successful_demos": 1,
+    "failed_demos": 0,
+    "success_rate": 100.0,
+    "demo_type": "zenml",
+    "timestamp": "2025-11-15T14:07:34.822680"
+  }
+}
