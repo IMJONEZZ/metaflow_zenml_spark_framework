@@ -1,8 +1,7 @@
-from metaflow import FlowSpec, step, Parameter
+from metaflow import FlowSpec, Parameter, step
 
 
 class ParallelTreesFlow(FlowSpec):
-
     max_depth = Parameter("max_depth", default=None)
     random_state = Parameter("seed", default=21)
     n_estimators = Parameter("n-est", default=10)
@@ -12,6 +11,28 @@ class ParallelTreesFlow(FlowSpec):
 
     @step
     def start(self):
+        print("""
+            Input
+              ↓
+    ┌─────────┼─────────┐
+    ↓         ↓         ↓
+Branch A  Branch B  Branch C
+    ↓         ↓         ↓
+Process 1  Process 2 Process 3
+    ↓         ↓         ↓
+[GPU 1]   [GPU 2]   [GPU 3]
+    ↓         ↓         ↓
+Result A  Result B  Result C
+    └─────────┼─────────┘
+              ↓
+        [Synchronize]
+              ↓
+          [Combine]
+              ↓
+           Output
+
+[All branches execute simultaneously]
+""")
         from sklearn import datasets
 
         self.iris = datasets.load_iris()
@@ -64,7 +85,7 @@ class ParallelTreesFlow(FlowSpec):
         self.experiment_results = []
         for name, mean, std in self.scores:
             self.experiment_results.append((name, mean, std))
-            msg = "{} Model Accuracy: {} \u00B1 {}%"
+            msg = "{} Model Accuracy: {} \u00b1 {}%"
             print(msg.format(name, round(mean, 3), round(std, 3)))
 
 

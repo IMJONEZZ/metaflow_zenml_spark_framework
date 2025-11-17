@@ -8,6 +8,7 @@ ZenML's built‑in container materializer limitations.
 """
 
 from typing import List, Tuple
+
 import numpy as np
 
 # ZenML imports
@@ -24,11 +25,28 @@ K_FOLD = 5
 @step
 def start() -> Tuple[List[List[float]], List[int]]:
     """Load the Iris dataset and return features/labels as JSON‑serializable lists."""
+    print("""
+        ○
+       ╱│╲
+      ╱ │ ╲
+     ○  ○  ○
+     │  │  │
+     ○  ○  ○
+      ╲ │ ╱
+       ╲│╱
+        ○
+
+    many paths
+    one destination
+    time collapses
+    """)
     from sklearn import datasets
+
     iris = datasets.load_iris()
-    X = iris["data"].tolist()   # list of [float]
+    X = iris["data"].tolist()  # list of [float]
     y = iris["target"].tolist()  # list of int
     return X, y
+
 
 @step
 def train_rf(X: List[List[float]], y: List[int]) -> List[float]:
@@ -36,6 +54,7 @@ def train_rf(X: List[List[float]], y: List[int]) -> List[float]:
     import numpy as np
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import cross_val_score
+
     X_arr = np.array(X)
     y_arr = np.array(y)
     clf = RandomForestClassifier(
@@ -47,12 +66,14 @@ def train_rf(X: List[List[float]], y: List[int]) -> List[float]:
     scores = cross_val_score(clf, X_arr, y_arr, cv=K_FOLD)
     return scores.tolist()
 
+
 @step
 def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
     """Train an XGBClassifier and return its CV scores as a list."""
     import numpy as np
     from xgboost import XGBClassifier
     from sklearn.model_selection import cross_val_score
+
     X_arr = np.array(X)
     y_arr = np.array(y)
     clf = XGBClassifier(
@@ -64,10 +85,14 @@ def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
     scores = cross_val_score(clf, X_arr, y_arr, cv=K_FOLD)
     return scores.tolist()
 
+
 @step
-def score(rf_scores: List[float], xgb_scores: List[float]) -> List[Tuple[str, float, float]]:
+def score(
+    rf_scores: List[float], xgb_scores: List[float]
+) -> List[Tuple[str, float, float]]:
     """Combine the results from both models into a list of (name, mean, std)."""
     import numpy as np
+
     results: List[Tuple[str, float, float]] = []
     for name, scores in [("Random Forest", rf_scores), ("XGBoost", xgb_scores)]:
         mean = round(100 * float(np.mean(scores)), 3)
@@ -75,11 +100,13 @@ def score(rf_scores: List[float], xgb_scores: List[float]) -> List[Tuple[str, fl
         results.append((name, mean, std))
     return results
 
+
 @step
 def end(results: List[Tuple[str, float, float]]) -> None:
     """Print the model accuracies."""
     for name, mean, std in results:
         print(f"{name} Model Accuracy: {mean} ± {std}%")
+
 
 @pipeline
 def parallel_trees_pipeline():
@@ -87,6 +114,8 @@ def parallel_trees_pipeline():
     rf_scores = train_rf(X=X, y=y)
     xgb_scores = train_xgb(X=X, y=y)
     results = score(rf_scores=rf_scores, xgb_scores=xgb_scores)
+    end(results=results)
+
     end(results=results)
 
 if __name__ == "__main__":

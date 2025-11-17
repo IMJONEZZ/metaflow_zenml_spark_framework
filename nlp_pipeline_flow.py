@@ -19,6 +19,26 @@ import os
 import time
 from typing import Any, Dict, List
 
+try:
+    from colorama import Fore, Style, init
+
+    init(autoreset=True)
+except ImportError:
+    # Fallback if colorama is not available
+    class Fore:
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        RED = "\033[91m"
+        BLUE = "\033[94m"
+        MAGENTA = "\033[95m"
+        CYAN = "\033[96m"
+        WHITE = "\033[97m"
+
+    class Style:
+        RESET_ALL = "\033[0m"
+        BRIGHT = "\033[1m"
+
+
 from metaflow.decorators import step
 from metaflow.flowspec import FlowSpec
 from metaflow.parameters import Parameter
@@ -73,10 +93,29 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def start(self):
         """Initialize the NLP processing pipeline."""
 
-        print("🚀 Starting Advanced Metaflow NLP Processing Pipeline")
-        print(f"Task: {self.task}")
-        print(f"Model Type: {self.model_type}")
-        print(f"Batch Size: {self.batch_size}")
+        # Unique ASCII Art for NLP Pipeline
+        print(
+            Fore.WHITE
+            + """
+            Raw Text: "The cat sat"
+                ↓
+            [Tokenization]
+                ↓
+            ["The", "cat", "sat"]
+                ↓
+            [Embedding Lookup]
+                ↓
+            [vector₁, vector₂, vector₃]
+                ↓
+            [Attention/Transformer Layers] ←──┐
+                ↓                              │
+            [Context flows between tokens] ────┘
+                ↓
+            [Task-Specific Head]
+                ↓
+            Output: Classification/Generation/etc
+        """
+        )
 
         # Validate and setup configuration - convert parameters to regular variables
         self.task_value = str(self.task)
@@ -85,14 +124,35 @@ class MetaflowNLPTransformersFlow(FlowSpec):
         self.max_length_value = int(str(self.max_length))
         self.text_samples_value = int(str(self.text_samples))
 
-        print("✅ NLP pipeline configuration validated")
+        # Consolidated configuration summary for non-ML engineers
+        print(Fore.BLUE + f"📋 Configuration Summary:")
+        print(
+            Fore.CYAN
+            + f"   • Task Type: {self.task_value} (analyzing text sentiment/classification)"
+        )
+        print(
+            Fore.CYAN
+            + f"   • Model: {self.model_type_value} (AI brain for understanding text)"
+        )
+        print(
+            Fore.CYAN + f"   • Processing Size: {self.batch_size_value} texts at once"
+        )
+        print(
+            Fore.CYAN
+            + f"   • Text Samples: {self.text_samples_value} examples to analyze"
+        )
+        print(
+            Fore.GREEN
+            + f"✅ Configuration validated - ready to process {self.text_samples_value} texts"
+        )
         self.next(self.prepare_environment)
 
     @step
     def prepare_environment(self):
         """Prepare the NLP processing environment and dependencies."""
 
-        print("🔧 Preparing NLP environment...")
+        print(Fore.CYAN + "🔧 Preparing NLP processing environment...")
+        print(Fore.BLUE + "   Loading AI models and setting up computing resources...")
 
         try:
             # Check for transformers library
@@ -116,25 +176,30 @@ class MetaflowNLPTransformersFlow(FlowSpec):
         except ImportError as e:
             raise Exception(f"Transformers library not available: {e}")
 
-        print(f"Environment prepared. Device: {self.processing_device}")
+        device_emoji = "🚀 GPU (fast)" if self.processing_device == "cuda" else "💻 CPU"
+        print(Fore.GREEN + f"✅ Environment ready - using {device_emoji}")
         self.next(self.generate_sample_texts)
 
     @step
     def generate_sample_texts(self):
         """Generate diverse text samples for NLP processing."""
 
-        print(f"📝 Generating {self.text_samples_value} sample texts for testing...")
+        print(
+            Fore.CYAN
+            + f"📝 Creating {self.text_samples_value} diverse text samples for analysis..."
+        )
+        print(
+            Fore.BLUE
+            + "   Generating realistic example texts (reviews, comments, descriptions)..."
+        )
 
         # Generate diverse, realistic text samples
         self.sample_texts = self._create_diverse_text_samples()
 
-        print(f"Generated {len(self.sample_texts)} text samples")
-
-        # Sample display
-        if len(self.sample_texts) >= 3:
-            print(f"Sample texts:")
-            for i, text in enumerate(self.sample_texts[:3]):
-                print(f'  {i + 1}. "{text[:80]}{"..." if len(text) > 80 else ""}"')
+        print(
+            Fore.GREEN
+            + f"✅ Generated {len(self.sample_texts)} text samples ready for processing"
+        )
 
         self.next(self.load_models)
 
@@ -142,7 +207,14 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def load_models(self):
         """Load appropriate models based on task and model type."""
 
-        print(f"🤖 Loading {self.model_type} models for {self.task} task...")
+        print(
+            Fore.CYAN
+            + f"🤖 Loading {self.model_type} AI model for {self.task_value} analysis..."
+        )
+        print(
+            Fore.BLUE
+            + "   Downloading and initializing the text understanding model..."
+        )
 
         try:
             from transformers import (
@@ -166,18 +238,19 @@ class MetaflowNLPTransformersFlow(FlowSpec):
             }
 
             if (
-                self.task in model_mapping
-                and self.model_type in model_mapping[self.task]
+                self.task_value in model_mapping
+                and self.model_type_value in model_mapping[self.task_value]
             ):
-                model_name = model_mapping[self.task][self.model_type]
+                model_name = model_mapping[self.task_value][self.model_type_value]
             else:
                 # Fallback to default
                 print(
-                    f"⚠️ Model {self.model_type} not found for task {self.task}, using default"
+                    Fore.YELLOW
+                    + f"⚠️ Model {self.model_type_value} not found for task {self.task_value}, using default"
                 )
                 model_name = "distilbert-base-uncased-finetuned-sst-2-english"
 
-            print(f"Loading model: {model_name}")
+            print(Fore.BLUE + f"   Loading model: {model_name}")
 
             # Load tokenizer and model
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -195,10 +268,17 @@ class MetaflowNLPTransformersFlow(FlowSpec):
                     device=0 if self.device == "cuda" else -1,
                 )
 
-            print(f"✅ Model loaded successfully")
+            model_emoji = (
+                "🧠 DistilBERT (fast & accurate)"
+                if self.model_type_value == "distilbert"
+                else "📚 BERT (comprehensive)"
+                if self.model_type_value == "bert_base"
+                else "💪 RoBERTa (robust)"
+            )
+            print(Fore.GREEN + f"✅ {model_emoji} loaded successfully")
 
         except Exception as e:
-            print(f"❌ Error loading model: {e}")
+            print(Fore.RED + f"❌ Error loading model: {e}")
             # Fallback to simple sentiment analysis
             self._load_fallback_model()
 
@@ -208,12 +288,16 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def preprocess_texts(self):
         """Preprocess and tokenize the text samples."""
 
-        print("⚙️ Preprocessing and tokenizing texts...")
+        print(Fore.CYAN + "⚙️ Preparing texts for AI analysis...")
+        print(
+            Fore.BLUE
+            + "   Converting text into numerical format the model can understand..."
+        )
 
         try:
             # For pipeline models, we can skip explicit preprocessing
             if hasattr(self, "nlp_pipeline"):
-                print("Using pipeline model for direct inference")
+                print(Fore.BLUE + "   Using streamlined processing mode")
                 self.tokenized_texts = self.sample_texts
             else:
                 # Tokenize texts for traditional models
@@ -227,10 +311,13 @@ class MetaflowNLPTransformersFlow(FlowSpec):
 
                 self.tokenized_texts = encoded_batch
 
-            print(f"✅ Preprocessed {len(self.sample_texts)} texts")
+            print(
+                Fore.GREEN
+                + f"✅ Text preparation complete - {len(self.sample_texts)} texts ready for analysis"
+            )
 
         except Exception as e:
-            print(f"❌ Error in preprocessing: {e}")
+            print(Fore.RED + f"❌ Text preparation failed: {e}")
             # Fallback to unprocessed texts
             self.tokenized_texts = [
                 text[:100] for text in self.sample_texts
@@ -242,12 +329,22 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def run_nlp_processing(self):
         """Execute the main NLP processing tasks."""
 
-        print(f"🧠 Running {self.task} analysis on {len(self.sample_texts)} texts...")
+        print(
+            Fore.CYAN
+            + f"🧠 Running {self.task_value} analysis on {len(self.sample_texts)} texts..."
+        )
+        print(
+            Fore.BLUE
+            + "   Analyzing each text to determine sentiment/classification..."
+        )
 
         results = []
         errors = 0
 
-        batch_size = int(self.batch_size)
+        batch_size = int(self.batch_size_value)
+
+        # Track progress for better user experience
+        total_batches = (len(self.tokenized_texts) + batch_size - 1) // batch_size
 
         # Process texts in batches for efficiency
         for i in range(0, len(self.tokenized_texts), batch_size):
@@ -266,8 +363,19 @@ class MetaflowNLPTransformersFlow(FlowSpec):
 
                 results.extend(batch_results)
 
+                # Progress update every 5 batches
+                current_batch = i // batch_size + 1
+                if (
+                    current_batch % max(1, total_batches // 5) == 0
+                    or current_batch == total_batches
+                ):
+                    print(
+                        Fore.BLUE
+                        + f"   Progress: {current_batch}/{total_batches} batches processed"
+                    )
+
             except Exception as e:
-                print(f"❌ Error processing batch {i // batch_size}: {e}")
+                print(Fore.RED + f"❌ Batch {i // batch_size} failed: {e}")
                 errors += 1
 
         # Summary statistics
@@ -275,10 +383,11 @@ class MetaflowNLPTransformersFlow(FlowSpec):
         self.total_errors = errors
         successful_processed = len([r for r in results if "error" not in str(r)])
 
-        print(f"✅ NLP Processing Complete:")
-        print(f"  Total texts: {len(self.sample_texts)}")
-        print(f"  Successfully processed: {successful_processed}")
-        print(f"  Errors encountered: {errors}")
+        print(Fore.GREEN + f"✅ Analysis Complete:")
+        print(Fore.CYAN + f"   • Total texts: {len(self.sample_texts)}")
+        print(Fore.CYAN + f"   • Successfully analyzed: {successful_processed}")
+        if errors > 0:
+            print(Fore.YELLOW + f"   • Errors encountered: {errors}")
 
         self.next(self.analyze_results)
 
@@ -286,12 +395,12 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def analyze_results(self):
         """Analyze and summarize NLP processing results."""
 
-        print("📊 Analyzing NLP Processing Results...")
+        print(Fore.CYAN + "📊 Calculating analysis results and insights...")
 
         # Process results based on task type
-        if self.task == "sentiment":
+        if self.task_value == "sentiment":
             analysis = self._analyze_sentiment_results()
-        elif self.task == "classification":
+        elif self.task_value == "classification":
             analysis = self._analyze_classification_results()
         else:
             # Generic analysis for other tasks
@@ -300,21 +409,30 @@ class MetaflowNLPTransformersFlow(FlowSpec):
         self.result_analysis = analysis
 
         # Display results summary
-        print(f"\n🎯 NLP TASK ANALYSIS - {self.task.upper()}")
-        print("=" * 50)
+        print(
+            Fore.WHITE
+            + f"""
+    ╔════════════════════════════════════════╗
+    ║                                        ║
+    ║  🎯 {self.task_value.upper()} ANALYSIS RESULTS 💬           ║
+    ║                                        ║
+    ╚════════════════════════════════════════╝
+        """
+        )
 
         for key, value in analysis.items():
             if isinstance(value, (int, float)):
                 print(
-                    f"{key.replace('_', ' ').title()}: {value:.3f}"
+                    Fore.BLUE + f"{key.replace('_', ' ').title()}: {value:.3f}"
                     if isinstance(value, float)
-                    else f"{key.replace('_', ' ').title()}: {value}"
+                    else Fore.BLUE + f"{key.replace('_', ' ').title()}: {value}"
                 )
             elif isinstance(value, list) and len(value) <= 5:
-                print(f"{key.replace('_', ' ').title()}: {value}")
+                print(Fore.BLUE + f"{key.replace('_', ' ').title()}: {value}")
             else:
                 print(
-                    f"{key.replace('_', ' ').title()}: {len(value) if hasattr(value, '__len__') else value}"
+                    Fore.BLUE
+                    + f"{key.replace('_', ' ').title()}: {len(value) if hasattr(value, '__len__') else value}"
                 )
 
         self.next(self.generate_insights)
@@ -392,9 +510,18 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def end(self):
         """Complete the NLP processing pipeline."""
 
-        print("\n" + "=" * 70)
-        print("🎉 METAFLOW NLP PROCESSING PIPELINE COMPLETE")
-        print("=" * 70)
+        print(
+            Fore.WHITE
+            + """
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║                                                               ║
+    ║  🎉 ADVANCED NLP PROCESSING PIPELINE SUCCESSFULLY COMPLETED! 🎉║
+    ║                                                               ║
+    ║  Your texts have been analyzed and insights generated         ║
+    ║                                                               ║
+    ╚═══════════════════════════════════════════════════════════════╝
+        """
+        )
 
         # Final summary
         total_texts = len(self.sample_texts) if hasattr(self, "sample_texts") else 0
@@ -404,43 +531,47 @@ class MetaflowNLPTransformersFlow(FlowSpec):
             else 0
         )
 
-        print(f"📊 Pipeline Summary:")
-        print(f"   Task: {self.task}")
-        print(f"   Model: {self.model_type}")
-        print(f"   Total Texts Processed: {total_texts}")
-        print(f"   Successfully Processed: {processed_successfully}")
+        print(Fore.BLUE + f"📊 Pipeline Summary:")
+        print(Fore.CYAN + f"   • Task Type: {self.task_value}")
+        print(Fore.CYAN + f"   • AI Model: {self.model_type_value}")
+        print(Fore.CYAN + f"   • Total Texts Analyzed: {total_texts}")
+        print(Fore.CYAN + f"   • Successfully Processed: {processed_successfully}")
 
         if hasattr(self, "result_analysis"):
-            print(f"   Analysis Results: {len(self.result_analysis)} metrics")
+            print(
+                Fore.CYAN
+                + f"   • Analysis Metrics: {len(self.result_analysis)} insights generated"
+            )
 
         if hasattr(self, "insights"):
-            print(f"   Insights Generated: {len(self.insights)} recommendations")
+            print(
+                Fore.CYAN
+                + f"   • Recommendations: {len(self.insights)} suggestions provided"
+            )
 
-        # Show sample results if available
-        if hasattr(self, "processing_results") and self.processing_results:
-            print(f"\n📋 Sample Results:")
+        success_rate = (
+            (processed_successfully / total_texts * 100) if total_texts > 0 else 0
+        )
 
-            sample_count = min(3, len(self.processing_results))
-            for i in range(sample_count):
-                result = self.processing_results[i]
+        if success_rate >= 95:
+            print(
+                Fore.GREEN
+                + f"✅ Excellent performance - {success_rate:.1f}% success rate!"
+            )
+        elif success_rate >= 80:
+            print(
+                Fore.YELLOW + f"⚠️ Good performance - {success_rate:.1f}% success rate"
+            )
+        else:
+            print(
+                Fore.RED
+                + f"❌ Performance issues - only {success_rate:.1f}% success rate"
+            )
 
-                if isinstance(result, dict) and "text" in result:
-                    text = (
-                        result["text"][:50] + "..."
-                        if len(result.get("text", "")) > 50
-                        else result["text"]
-                    )
-                else:
-                    text = "Result unavailable"
-
-                print(f'  {i + 1}. Text: "{text}"')
-
-                if isinstance(result, dict) and "label" in result:
-                    label = result.get("label", "Unknown")
-                    confidence = result.get("confidence", 0)
-                    print(f"     Prediction: {label} (conf: {confidence:.3f})")
-
-        print("\n✅ Advanced NLP processing pipeline completed successfully!")
+        print(
+            Fore.GREEN
+            + "\n🎯 Your advanced NLP processing pipeline has completed successfully!"
+        )
 
     # Helper Methods
 
@@ -520,7 +651,7 @@ class MetaflowNLPTransformersFlow(FlowSpec):
     def _load_fallback_model(self):
         """Load a simple fallback model in case of errors."""
 
-        print("🔄 Loading fallback sentiment analysis...")
+        print(Fore.YELLOW + "🔄 Loading backup sentiment analysis system...")
 
         try:
             from transformers import pipeline
@@ -528,7 +659,10 @@ class MetaflowNLPTransformersFlow(FlowSpec):
             self.nlp_pipeline = pipeline("sentiment-analysis")
         except:
             # Final fallback - simple keyword-based analysis
-            print("⚠️ Using basic keyword-based sentiment analysis")
+            print(
+                Fore.YELLOW
+                + "⚠️ Using basic keyword-based sentiment analysis (limited accuracy)"
+            )
 
     def nlp_processor(self, batch):
         """Process texts using the NLP pipeline."""

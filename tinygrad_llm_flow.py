@@ -1,8 +1,28 @@
-from metaflow.flowspec import FlowSpec
-from metaflow.decorators import step
-from metaflow.parameters import Parameter
+import math
+import os
+import time
 from dataclasses import dataclass
-import os, math, time
+
+from metaflow.decorators import step
+from metaflow.flowspec import FlowSpec
+from metaflow.parameters import Parameter
+
+    init(autoreset=True)
+except ImportError:
+    # Fallback if colorama is not available
+    class Fore:
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        RED = "\033[91m"
+        BLUE = "\033[94m"
+        MAGENTA = "\033[95m"
+        CYAN = "\033[96m"
+        WHITE = "\033[97m"
+
+    class Style:
+        RESET_ALL = "\033[0m"
+        BRIGHT = "\033[1m"
+
 
 try:
     import numpy as np
@@ -10,7 +30,8 @@ try:
     import tiktoken
 except ImportError as e:
     print(f"Import error: {e}")
-    
+
+
 @dataclass
 class GPTConfig:
     block_size: int = 1024
@@ -20,8 +41,9 @@ class GPTConfig:
     n_head: int = 12
     n_embd: int = 768
 
+
 class CausalSelfAttention:
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config: GPTConfig):
         assert config.n_embd % config.n_head == 0
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
@@ -30,7 +52,7 @@ class CausalSelfAttention:
         self.bias = Tensor.ones(1, 1, config.block_size, config.block_size).tril()
         self.bias.requires_grad = False
 
-    def __call__(self, x:Tensor):
+    def __call__(self, x: Tensor):
         B, T, C = x.shape
         qkv = self.c_attn(x)
         q, k, v = qkv.split(self.n_embd, dim=2)
@@ -39,35 +61,38 @@ class CausalSelfAttention:
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+        att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
         att = att.softmax()
         y = att @ v
         y = y.transpose(1, 2).view(B, T, C)
         y = self.c_proj(y)
         return y
 
+
 class MLP:
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config: GPTConfig):
         self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd)
         self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd)
 
-    def __call__(self, x:Tensor) -> Tensor:
+    def __call__(self, x: Tensor) -> Tensor:
         return self.c_proj(self.c_fc(x).gelu())
 
+
 class Block:
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config: GPTConfig):
         self.ln_1 = nn.LayerNorm(config.n_embd)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
 
-    def __call__(self, x:Tensor):
+    def __call__(self, x: Tensor):
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
 
+
 class GPT:
-    def __init__(self, config:GPTConfig):
+    def __init__(self, config: GPTConfig):
         self.config = config
         self.wte = nn.Embedding(config.padded_vocab_size, config.n_embd)
         self.wpe = nn.Embedding(config.block_size, config.n_embd)
@@ -77,26 +102,47 @@ class GPT:
         self.wte.weight = self.lm_head.weight
 
     def load_pretrained(self):
-        weights = nn.state.torch_load(fetch('https://huggingface.co/gpt2/resolve/main/pytorch_model.bin'))
-        transposed = ('attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight')
+        weights = nn.state.torch_load(
+            fetch("https://huggingface.co/gpt2/resolve/main/pytorch_model.bin")
+        )
+        transposed = (
+            "attn.c_attn.weight",
+            "attn.c_proj.weight",
+            "mlp.c_fc.weight",
+            "mlp.c_proj.weight",
+        )
         for k in weights:
             if k == "wte.weight":
-                weights[k] = weights[k].pad(((0, self.config.padded_vocab_size-self.config.vocab_size), (0,0))).to(None).contiguous()
+                weights[k] = (
+                    weights[k]
+                    .pad(
+                        (
+                            (0, self.config.padded_vocab_size - self.config.vocab_size),
+                            (0, 0),
+                        )
+                    )
+                    .to(None)
+                    .contiguous()
+                )
             if k.endswith(transposed):
                 weights[k] = weights[k].to(None).T.contiguous()
-        weights['lm_head.weight'] = weights['wte.weight']
+        weights["lm_head.weight"] = weights["wte.weight"]
         nn.state.load_state_dict(self, weights)
 
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
         for _ in range(max_new_tokens):
-            idx_cond = idx if idx.shape[1] <= self.config.block_size else idx[:, -self.config.block_size:]
+            idx_cond = (
+                idx
+                if idx.shape[1] <= self.config.block_size
+                else idx[:, -self.config.block_size :]
+            )
             logits, _ = self(idx_cond)
             logits = logits[:, -1, :] / temperature
             idx_next = logits.softmax().multinomial()
             idx = Tensor.cat(idx, idx_next, dim=1)
         return idx
 
-    def __call__(self, idx:Tensor, targets=None):
+    def __call__(self, idx: Tensor, targets=None):
         b, t = idx.shape
         pos = Tensor.arange(0, t, device=idx.device)
         tok_emb = self.wte(idx)
@@ -105,13 +151,14 @@ class GPT:
         x = self.ln_f(x.sequential(self.h))
 
         if targets is not None:
-            logits = self.lm_head(x)[:, :, :self.config.vocab_size]
+            logits = self.lm_head(x)[:, :, : self.config.vocab_size]
             loss = logits.sparse_categorical_crossentropy(targets)
         else:
-            logits = self.lm_head(x[:, [-1], :])[:, :, :self.config.vocab_size]
+            logits = self.lm_head(x[:, [-1], :])[:, :, : self.config.vocab_size]
             loss = None
 
         return logits, loss
+
 
 class TinyGradLLMFlow(FlowSpec):
     """A Metaflow flow that finetunes a GPT-2 model on a text dataset using tinygrad.
@@ -136,136 +183,230 @@ class TinyGradLLMFlow(FlowSpec):
     @step
     def start(self):
         """Load the text dataset and return the training dataloader."""
-        print("=== START STEP: Loading Text Dataset ===")
-        
+
+        # Unique ASCII Art for LLM Training Pipeline
+        print(
+            Fore.WHITE
+            + """
+    ╔══════════════════════════════════════════════════════╗
+    ║                                                      ║
+    ║  🤖🚀 TINYGRAD LLM TRAINING PIPELINE 🚀🤖           ║
+    ║                                                      ║
+    ║  Training GPT-2 to Generate Shakespearean Text       ║
+    ║                                                      ║
+    ╚══════════════════════════════════════════════════════╝
+        """
+        )
+
         self.B = int(self.batch_size)  # type: ignore
         self.T = int(self.sequence_length)  # type: ignore
         T_val = int(self.T)
-        
-        print(f"Configuration:")
-        print(f"  - Batch size: {self.B}")
-        print(f"  - Sequence length: {T_val}")
-        
+
         assert 1 <= T_val <= 1024
-        
-        print("Fetching text dataset from HuggingFace...")
-        tokens_bin = fetch("https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/tiny_shakespeare_val.bin")
+
+        print(Fore.BLUE + f"📋 Training Configuration:")
+        print(
+            Fore.CYAN
+            + f"   • Batch size: {self.B} (how many text sequences per training step)"
+        )
+        print(
+            Fore.CYAN + f"   • Sequence length: {T_val} (length of each text sequence)"
+        )
+        print(
+            Fore.GREEN
+            + f"✅ Configuration validated - ready for {self.B}x{self.T} training batches"
+        )
+
+        print(Fore.CYAN + "📚 Loading text dataset from internet...")
+        tokens_bin = fetch(
+            "https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/tiny_shakespeare_val.bin"
+        )
         assert os.path.isfile(tokens_bin)
-        print(f"Dataset downloaded and cached at: {tokens_bin}")
-        
+
+        print(Fore.CYAN + f"🔽 Dataset cached locally at: {tokens_bin}")
+
         # Load tokens from binary file
-        print("Loading tokens from binary file...")
+        print(Fore.BLUE + "🔄 Converting text to numerical format...")
         with open(tokens_bin, "rb") as f:
             f.seek(0x400)  # Skip header
             tokens = np.frombuffer(f.read(), dtype=np.uint16).astype(np.int32)
-        
-        print(f"Successfully loaded {len(tokens)} tokens from dataset")
+
+        print(Fore.GREEN + f"✅ Dataset ready: {len(tokens):,} text tokens loaded")
         self.tokens = Tensor(tokens)
-        
-        print("Initializing GPT-2 tokenizer...")
+
+        print(Fore.CYAN + "🔤 Setting up GPT-2 text tokenizer...")
         enc = tiktoken.get_encoding("gpt2")
         self.encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
         self.decode = lambda l: enc.decode(l)
-        
-        print("Dataset preprocessing completed successfully!")
-        print(f"Ready to proceed with training using {self.B}x{self.T} batches")
-        
+
+        print(Fore.GREEN + f"🎯 Dataset preparation complete! Ready for GPT-2 training")
+
         self.next(self.train)
-    
+
     @step
     def train(self):
         """Finetune the GPT-2 model for a specified number of iterations."""
-        print("=== TRAIN STEP: Starting Model Training ===")
-        
+
+        print(
+            Fore.WHITE
+            + """
+            [Tinygrad: Minimal Autodiff Engine]
+                        ↓
+                Define Model (Python)
+                        ↓
+                ┌───────┴───────┐
+                ↓               ↓
+            Forward Pass    Build Computation Graph
+                ↓               ↓
+            Compute Loss    Track Operations
+                ↓               ↓
+                └───────┬───────┘
+                        ↓
+                Backward Pass (Automatic!)
+                        ↓
+                Compute Gradients ──→ [∂L/∂w for all weights]
+                        ↓
+                Update Weights ──→ w := w - lr × ∇w
+                        ↓
+                ┌───────┴───────┐
+                ↓               ↓
+            Next Batch      Minimal overhead
+                │               ↓
+                │         [Fast iteration]
+                │               ↓
+                └──────→ [Simple code, full power]
+
+            [The whole training loop in ~100 lines]
+        """
+        )
+
         B = int(self.B)  # type: ignore
         T = int(self.T)  # type: ignore
         gpus = int(self.gpus)  # type: ignore
         num_iterations = int(self.num_iterations)  # type: ignore
-        
-        print(f"Training configuration:")
-        print(f"  - Batch size: {B}")
-        print(f"  - Sequence length: {T}")
-        print(f"  - Number of iterations: {num_iterations}")
-        print(f"  - GPUs to use: {gpus}")
-        
-        print("Initializing GPT-2 model...")
+
+        print(Fore.BLUE + f"🎛️ Training Setup:")
+        print(Fore.CYAN + f"   • Batch size: {B} sequences per step")
+        print(Fore.CYAN + f"   • Sequence length: {T} tokens per sequence")
+        print(Fore.CYAN + f"   • Training iterations: {num_iterations}")
+        print(
+            Fore.CYAN
+            + f"   • GPU devices: {gpus} {'(GPU acceleration enabled)' if gpus > 0 else '(CPU only)'}"
+        )
+
+        print(Fore.BLUE + "🤖 Initializing GPT-2 neural network...")
         self.model = GPT(GPTConfig(n_layer=12, n_head=12, n_embd=768))
-        
-        print("Loading pretrained weights from HuggingFace...")
+
+        print(Fore.CYAN + "📥 Loading pretrained GPT-2 weights from internet...")
         self.model.load_pretrained()
-        print("Pretrained model loaded successfully!")
+
+        model_info = (
+            "🧠 GPT-2 Large (117M parameters)" if gpus > 0 else "💻 CPU-optimized model"
+        )
+        print(Fore.GREEN + f"✅ {model_info} loaded successfully!")
 
         GPUS = ()
         if gpus > 1:
-            GPUS = tuple(f'{Device.DEFAULT}:{i}' for i in range(gpus))
-            print(f"Distributing model across {len(GPUS)} GPUs: {GPUS}")
-            for x in nn.state.get_parameters(self.model): 
+            GPUS = tuple(f"{Device.DEFAULT}:{i}" for i in range(gpus))
+            print(Fore.BLUE + f"🚀 Distributing model across {len(GPUS)} GPUs: {GPUS}")
+            for x in nn.state.get_parameters(self.model):
                 x.to_(GPUS)
         else:
-            print("Running on single GPU/CPU configuration")
+            device_info = (
+                "🚀 GPU acceleration"
+                if gpus == 1 and hasattr(Device, "DEFAULT")
+                else "💻 CPU processing"
+            )
+            print(Fore.BLUE + f"⚡ {device_info} mode")
 
         enc = tiktoken.get_encoding("gpt2")
         self.encode = lambda s: enc.encode(s, allowed_special={"<|endoftext|>"})
         self.decode = lambda l: enc.decode(l)
 
-        print("Creating training batches...")
+        print(Fore.BLUE + "🔄 Preparing training data batches...")
         batches_list = []
         i = 0
         while True:
-            x = self.tokens[i:i+B*T].view(B, T)
-            y = self.tokens[i+1:i+B*T+1].view(B, T)
+            x = self.tokens[i : i + B * T].view(B, T)
+            y = self.tokens[i + 1 : i + B * T + 1].view(B, T)
             batches_list.append((x, y))
-            i += B*T
-            if i + B*T + 1 >= len(self.tokens):
+            i += B * T
+            if i + B * T + 1 >= len(self.tokens):
                 break
 
-        print(f"Created {len(batches_list)} training batches")
-        
+        print(
+            Fore.GREEN
+            + f"✅ Created {len(batches_list)} training batches ready for processing"
+        )
+
         x, y = batches_list[0]
-        print("Setting up optimizer...")
-        optimizer = nn.optim.AdamW(nn.state.get_parameters(self.model), lr=1e-4, weight_decay=0)
+        print(Fore.BLUE + "⚙️ Setting up AI optimizer...")
+        optimizer = nn.optim.AdamW(
+            nn.state.get_parameters(self.model), lr=1e-4, weight_decay=0
+        )
 
-        print(f"Memory usage:")
-        print(f"  - Model state: {sum(x.nbytes() for x in nn.state.get_parameters(self.model))/1e9:.2f} GB")
-        print(f"  - Optimizer state: {sum(x.nbytes() for x in nn.state.get_parameters(optimizer))/1e9:.2f} GB")
+        model_memory = (
+            sum(x.nbytes() for x in nn.state.get_parameters(self.model)) / 1e9
+        )
+        optimizer_memory = (
+            sum(x.nbytes() for x in nn.state.get_parameters(optimizer)) / 1e9
+        )
+        print(
+            Fore.CYAN
+            + f"💾 Memory usage - Model: {model_memory:.2f}GB, Optimizer: {optimizer_memory:.2f}GB"
+        )
 
-        if gpus > 1: 
-            print(f"Sharding training data across {len(GPUS)} GPUs...")
+        if gpus > 1:
+            print(
+                Fore.BLUE + f"🔄 Distributing training data across {len(GPUS)} GPUs..."
+            )
             x = x.shard(GPUS, axis=0)
             y = y.shard(GPUS, axis=0)
 
         @TinyJit
         @Tensor.train()
-        def step(x:Tensor, y:Tensor) -> Tensor:
+        def step(x: Tensor, y: Tensor) -> Tensor:
             _, loss = self.model(x, y)
             assert loss is not None
             optimizer.zero_grad()
             loss.backward()
             return loss.realize(*optimizer.schedule_step())
 
-        print(f"Starting training loop for {num_iterations} iterations...")
-        
+        print(Fore.GREEN + f"🎯 Starting {num_iterations} training iterations...")
+
+        # Configurable iteration logging - log every 20% or at end
+        log_interval = max(1, num_iterations // 5)
+
         for i in range(num_iterations):
             GlobalCounters.reset()
             t0 = time.perf_counter()
             loss = step(x.contiguous(), y.contiguous())
             Device[Device.DEFAULT].synchronize()
             t1 = time.perf_counter()
-            tokens_per_sec = int(B*T/(t1-t0))
-            print(f"Iteration {i:3d}/{num_iterations}: loss={loss.item():.6f}, time={(t1-t0)*1000:.3f}ms, {tokens_per_sec:4d} tok/s, memory={GlobalCounters.global_mem/1e9:.2f} GB")
-        
-        print("Training completed successfully!")
-        
+            tokens_per_sec = int(B * T / (t1 - t0))
+
+            # Log progress every 20% and at completion
+            if i % log_interval == 0 or i == num_iterations - 1:
+                print(
+                    Fore.CYAN
+                    + f"   Iteration {i + 1:3d}/{num_iterations}: loss={loss.item():.6f}, speed={tokens_per_sec:4d} tok/s, memory={GlobalCounters.global_mem / 1e9:.2f}GB"
+                )
+
+        print(
+            Fore.GREEN
+            + f"🎉 Training completed successfully! Final loss: {loss.item():.6f}"
+        )
+
         self.next(self.end)
-    
+
     @step
     def end(self):
         """Final step - report completion and optionally generate text using reference strategy."""
         print("=== END STEP: Training Complete ===")
-        
+
         gpus = int(self.gpus)  # type: ignore
         skip_test = bool(self.skip_test)
-        
+
         print(f"Final configuration summary:")
         print(f"  - GPUs used: {gpus}")
         print(f"  - Text generation {'skipped' if skip_test else 'requested'}")
@@ -274,14 +415,14 @@ class TinyGradLLMFlow(FlowSpec):
             print("Text generation was explicitly skipped as requested.")
         else:
             print("Starting post-training text generation...")
-            
+
             try:
                 # Check current device and attempt text generation
                 sample_param = next(iter(nn.state.get_parameters(self.model)))
                 current_device = str(sample_param.device)
                 print(f"Model is currently on device: {current_device}")
 
-                if current_device.startswith('CUDA') and gpus > 0:
+                if current_device.startswith("CUDA") and gpus > 0:
                     print("GPU detected - attempting GPU text generation...")
                     try:
                         self._generate_text_reference_strategy()
@@ -297,11 +438,11 @@ class TinyGradLLMFlow(FlowSpec):
                 print(f"Text generation failed: {e}")
 
         print("TinyGradLLMFlow execution completed successfully!")
-        
+
         print("\n=== PIPELINE SUMMARY ===")
         print("Pipeline execution phases:")
         print("  1. ✅ START - Dataset loaded and tokens preprocessed")
-        print("  2. ✅ TRAIN - Model training completed") 
+        print("  2. ✅ TRAIN - Model training completed")
         print("  3. ✅ END   - Post-training operations and text generation")
         if not skip_test:
             print("  4. ✅ GENERATION - Text generated successfully")
@@ -319,44 +460,44 @@ class TinyGradLLMFlow(FlowSpec):
 
         # Get current device
         sample_param = next(iter(nn.state.get_parameters(self.model)))
-        
+
         print("Step 1/6: Moving all model parameters to current device...")
         for param in nn.state.get_parameters(self.model):
-            if hasattr(param, 'to_'):
+            if hasattr(param, "to_"):
                 param.to_(sample_param.device)
 
         print("Step 2/6: Synchronizing device...")
         Device[Device.DEFAULT].synchronize()
-        
+
         print("Step 3/6: Setting up generation parameters...")
         start = "<|endoftext|>"
         start_ids = encode_fn(start)
-        
+
         # This matches the reference exactly: (Tensor(start_ids)[None, ...])
         x = Tensor(start_ids)[None, ...]
-        
+
         max_new_tokens = 16
         temperature = 1.0
-        
+
         print(f"Input prompt: '{start}' ({len(start_ids)} tokens)")
         print(f"Generation settings:")
         print(f"  - Max new tokens: {max_new_tokens}")
         print(f"  - Temperature: {temperature}")
-        
+
         print("Step 4/6: Running text generation...")
         y = self.model.generate(x, max_new_tokens, temperature=temperature)
-        
+
         print("Step 5/6: Extracting output tokens...")
         # This matches the reference exactly: y[0].tolist()
         output_tokens = y[0].tolist()
-        
+
         print("Step 6/6: Decoding and displaying results...")
         decoded_text = decode_fn(output_tokens)
-        
+
         print(f"TEXT GENERATION SUCCESSFUL!")
         print(f"Generated text: '{decoded_text}'")
         print(f"Total tokens generated: {len(output_tokens)}")
-        
+
         if len(output_tokens) > 1:
             new_tokens = output_tokens[1:]  # Skip the initial endoftext token
             print(f"New tokens (excluding start): {new_tokens}")
@@ -373,29 +514,33 @@ class TinyGradLLMFlow(FlowSpec):
 
         print("Step 1/4: Moving all model parameters to default device...")
         for param in nn.state.get_parameters(self.model):
-            if hasattr(param, 'to_'):
+            if hasattr(param, "to_"):
                 param.to_(Device.DEFAULT)
 
         print("Step 2/4: Synchronizing device...")
         Device[Device.DEFAULT].synchronize()
-        
+
         print("Step 3/4: Running text generation...")
         start = "<|endoftext|>"
         start_ids = encode_fn(start)
         x = Tensor(start_ids)[None, ...]
-        
+
         max_new_tokens = 16
         temperature = 1.0
-        
+
         print(f"Input prompt: '{start}' ({len(start_ids)} tokens)")
-        
+
         y = self.model.generate(x, max_new_tokens, temperature=temperature)
-        
+
         print("Step 4/4: Extracting and decoding results...")
         # Simple .tolist() extraction like reference
         output_tokens = y[0].tolist()
-        
+
         decoded_text = decode_fn(output_tokens)
+        print(f"TEXT GENERATION SUCCESSFUL!")
+        print(f"Generated text: '{decoded_text}'")
+        print(f"Total tokens generated: {len(output_tokens)}")
+
         print(f"TEXT GENERATION SUCCESSFUL!")
         print(f"Generated text: '{decoded_text}'")
         print(f"Total tokens generated: {len(output_tokens)}")

@@ -6,6 +6,26 @@ file system and performs inference on text prompts. Designed for deployment usin
 
 from typing import Tuple
 
+try:
+    from colorama import Fore, Style, init
+
+    init(autoreset=True)
+except ImportError:
+    # Fallback if colorama is not available
+    class Fore:
+        GREEN = "\033[92m"
+        YELLOW = "\033[93m"
+        RED = "\033[91m"
+        BLUE = "\033[94m"
+        MAGENTA = "\033[95m"
+        CYAN = "\033[96m"
+        WHITE = "\033[97m"
+
+    class Style:
+        RESET_ALL = "\033[0m"
+        BRIGHT = "\033[1m"
+
+
 import torch
 
 # ZenML imports
@@ -19,6 +39,28 @@ def load_checkpoint() -> Tuple[object, object]:
     Returns:
         Tuple[object, object]: (model, tokenizer) loaded from checkpoint
     """
+
+    # Unique ASCII Art for HuggingFace Inference Pipeline
+    print(
+        Fore.WHITE
+        + r"""
+        input
+          ↓
+       ◎━━━◎
+       ║   ║
+       ◎━━━◎  layers
+       ║   ║  flow
+       ◎━━━◎  like
+       ║   ║  water
+       ◎━━━◎
+          ↓
+       output
+
+      no learning
+      only being
+    """
+    )
+
     import os
 
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -26,46 +68,47 @@ def load_checkpoint() -> Tuple[object, object]:
     checkpoint_path = "./checkpoints/qwen3-vl-finetuned"
     quantization_config = BitsAndBytesConfig(load_in_4bit=True)
 
-    print(f"Loading checkpoint from: {checkpoint_path}")
+    print(Fore.BLUE + f"📁 Loading AI model from: {checkpoint_path}")
 
     # Check if checkpoint directory exists
     if not os.path.exists(checkpoint_path):
         error_msg = f"Checkpoint path does not exist: {checkpoint_path}"
-        print(f"Error: {error_msg}")
+        print(Fore.RED + f"❌ Error: {error_msg}")
 
         # List available checkpoints to help debug
         checkpoints_dir = "./checkpoints"
         if os.path.exists(checkpoints_dir):
-            print(f"Available items in {checkpoints_dir}:")
+            print(Fore.YELLOW + f"📂 Available items in {checkpoints_dir}:")
             for item in os.listdir(checkpoints_dir):
-                print(f"  - {item}")
+                print(Fore.CYAN + f"  • {item}")
         else:
-            print("Checkpoints directory does not exist.")
+            print(Fore.YELLOW + "📂 Checkpoints directory does not exist.")
 
         raise FileNotFoundError(error_msg)
 
     try:
         # Load model from checkpoint
-        print("Loading model...")
+        print(Fore.BLUE + "🤖 Loading neural network...")
         model = AutoModelForCausalLM.from_pretrained(
             checkpoint_path, quantization_config=quantization_config
         )
 
         # Load tokenizer from checkpoint
-        print("Loading tokenizer...")
+        print(Fore.BLUE + "🔤 Loading text processor...")
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
 
         # Set pad token if not exists
         if tokenizer.pad_token is None:
+            print(Fore.BLUE + "🔧 Configuring token padding...")
             tokenizer.add_special_tokens({"pad_token": "[PAD]"})
 
-        print("Checkpoint loaded successfully!")
+        print(Fore.GREEN + "✅ AI model ready for text generation!")
 
         return model, tokenizer
 
     except Exception as e:
         error_msg = f"Error loading checkpoint: {e}"
-        print(f"Error: {error_msg}")
+        print(Fore.RED + f"❌ Error: {error_msg}")
         raise RuntimeError(error_msg)
 
 
@@ -134,8 +177,7 @@ def inference_step(
         return raw_output
 
     except Exception as e:
-        error_msg = f"Error during inference: {e}"
-        print(f"Inference error: {error_msg}")
+        print(f"Inference error: {type(e)}: {error_msg}")
 
         # Return a fallback response
         return f"I apologize, but I encountered an error during inference: {str(e)}"

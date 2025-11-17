@@ -167,7 +167,20 @@ def extract_and_display_results(
 def simple_nlp_pipeline(num_samples: int = 10) -> None:
     """Execute the complete NLP pipeline."""
 
-    print("🚀 Starting Simple NLP Processing Pipeline")
+    print("""
+        words → [tokens] → meaning
+
+          the
+           ↓
+          cat  →  sits
+           ↓        ↓
+          mat ← upon
+
+        language flows
+        like a river
+        carrying meaning
+        in drops
+        """)
     print(f"Samples to process: {num_samples}")
 
     # Execute pipeline steps

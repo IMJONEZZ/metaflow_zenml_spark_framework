@@ -1,8 +1,7 @@
-from metaflow import FlowSpec, step, Parameter
+from metaflow import FlowSpec, Parameter, step
 
 
 class GradientBoostedTreesFlow(FlowSpec):
-
     random_state = Parameter("seed", default=12)
     n_estimators = Parameter("n-est", default=10)
     eval_metric = Parameter("eval-metric", default="mlogloss")
@@ -12,6 +11,20 @@ class GradientBoostedTreesFlow(FlowSpec):
     def start(self):
         from sklearn import datasets
 
+        print("""
+            Tree₁: ━━━━━━━━━━━━━━━━━━→ Residuals₁
+                                        ↓
+            Tree₂: ━━━━━━━━━━━━━━━━━━→ Residuals₂
+                                        ↓
+            Tree₃: ━━━━━━━━━━━━━━━━━━→ Residuals₃
+                                        ↓
+                                       ...
+                                        ↓
+            Σ(Trees) ════════════════→ Final Prediction
+
+            [Each tree corrects what came before]
+            """)
+
         self.iris = datasets.load_iris()
         self.X = self.iris["data"]
         self.y = self.iris["target"]
@@ -19,8 +32,8 @@ class GradientBoostedTreesFlow(FlowSpec):
 
     @step
     def train_xgb(self):
-        from xgboost import XGBClassifier
         from sklearn.model_selection import cross_val_score
+        from xgboost import XGBClassifier
 
         self.clf = XGBClassifier(
             n_estimators=self.n_estimators,
@@ -35,7 +48,7 @@ class GradientBoostedTreesFlow(FlowSpec):
     def end(self):
         import numpy as np
 
-        msg = "Gradient Boosted Trees Model Accuracy: {} \u00B1 {}%"
+        msg = "Gradient Boosted Trees Model Accuracy: {} \u00b1 {}%"
         self.mean = round(100 * np.mean(self.scores), 3)
         self.std = round(100 * np.std(self.scores), 3)
         print(msg.format(self.mean, self.std))

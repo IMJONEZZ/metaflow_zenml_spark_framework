@@ -18,10 +18,28 @@ from datetime import datetime
 from typing import Dict, Any
 
 try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+except ImportError:
+    # Fallback if colorama is not available
+    class Fore:
+        GREEN = '\033[92m'
+        YELLOW = '\033[93m'
+        RED = '\033[91m'
+        BLUE = '\033[94m'
+        MAGENTA = '\033[95m'
+        CYAN = '\033[96m'
+        WHITE = '\033[97m'
+
+    class Style:
+        RESET_ALL = '\033[0m'
+        BRIGHT = '\033[1m'
+
+try:
     import gpustat
     GPUSTAT_AVAILABLE = True
 except ImportError:
-    print("gpustat not available, GPU monitoring will be limited")
+    print(Fore.YELLOW + "⚠️ gpustat not available, GPU monitoring will be limited")
     gpustat = None
     GPUSTAT_AVAILABLE = False
 
@@ -29,7 +47,7 @@ try:
     import torch
     TORCH_AVAILABLE = True
 except ImportError:
-    print("torch not available, PyTorch-specific features disabled")
+    print(Fore.YELLOW + "⚠️ torch not available, PyTorch-specific features disabled")
     torch = None
     TORCH_AVAILABLE = False
 

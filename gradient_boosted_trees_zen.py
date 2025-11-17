@@ -6,7 +6,8 @@ It loads the Iris dataset, trains an XGBoost classifier with cross‑validation,
 and prints the mean accuracy and standard deviation.
 """
 
-from typing import Tuple, List
+from typing import List, Tuple
+
 import numpy as np
 
 # ZenML imports
@@ -18,14 +19,35 @@ N_ESTIMATORS = 10
 EVAL_METRIC = "mlogloss"
 K_FOLD = 5
 
+
 @step
 def start() -> Tuple[List[List[float]], List[int]]:
     """Load the Iris dataset and return features/labels as JSON‑serializable lists."""
     from sklearn import datasets
+
+    print(r"""
+        🌱
+         /|\
+        / | \
+       /  |  \
+      🍂 🌿 🌸
+        \ | /
+         \|/
+         🌳
+         /|\
+        / | \
+      🌺 🍃 🌻
+
+       wisdom
+        grows
+       residual
+         by
+       residual""")
     iris = datasets.load_iris()
-    X = iris["data"].tolist()   # list of lists (floats)
+    X = iris["data"].tolist()  # list of lists (floats)
     y = iris["target"].tolist()  # list of ints
     return X, y
+
 
 @step
 def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
@@ -49,6 +71,7 @@ def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
     scores = cross_val_score(clf, X_arr, y_arr, cv=K_FOLD)
     return scores.tolist()
 
+
 @step
 def end(scores: List[float]) -> None:
     """Print the mean accuracy and standard deviation.
@@ -56,15 +79,20 @@ def end(scores: List[float]) -> None:
     The output format matches the original Metaflow flow.
     """
     import numpy as np
+
     mean = round(100 * float(np.mean(scores)), 3)
     std = round(100 * float(np.std(scores)), 3)
-    print(f"Gradient Boosted Trees Model Accuracy: {mean} \u00B1 {std}%")
+    print(f"Gradient Boosted Trees Model Accuracy: {mean} \u00b1 {std}%")
+
 
 @pipeline
 def gradient_boosted_trees_pipeline():
     X, y = start()
     scores = train_xgb(X=X, y=y)
     end(scores=scores)
+
+    end(scores=scores)
+
 
 if __name__ == "__main__":
     # Running the pipeline locally via ZenML's default orchestrator.
