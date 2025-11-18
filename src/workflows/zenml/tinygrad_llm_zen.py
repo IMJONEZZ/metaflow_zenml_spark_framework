@@ -4,7 +4,7 @@ from typing import List, Tuple
 import numpy as np
 
 try:
-    init(autoreset=True)
+    from colorama import Fore, Style, init
 except ImportError:
     # Fallback if colorama is not available
     class Fore:
@@ -22,10 +22,13 @@ except ImportError:
 
 
 # ZenML imports
-from zenml import pipeline, step
-import os, math, time
-from tinygrad import Tensor, nn, fetch, Device, TinyJit, GlobalCounters
+import math
+import os
+import time
+
 import tiktoken
+from tinygrad import Device, GlobalCounters, Tensor, TinyJit, fetch, nn
+from zenml import pipeline, step
 
 
 @dataclass
@@ -174,7 +177,7 @@ class GPT:
         return logits, loss
 
 
-@step
+@step(enable_cache=False)
 def start() -> List[int]:
     """Load the text dataset and return the tokens as a list."""
 
@@ -224,7 +227,7 @@ def start() -> List[int]:
     return tokens.tolist()
 
 
-@step
+@step(enable_cache=False)
 def train(
     tokens: List[int],
     num_iterations: int,
@@ -355,7 +358,7 @@ def train(
     return final_loss, model_size
 
 
-@step
+@step(enable_cache=False)
 def end(
     final_loss: float,
     model_size: float,
@@ -457,35 +460,6 @@ def tinygrad_llm_pipeline(
         skip_test=skip_test,
     )
 
-
-def tinygrad_llm_pipeline(
-    num_iterations: int = 10,
-    batch_size: int = 4,
-    sequence_length: int = 64,
-    gpus: int = 1,
-    skip_test: bool = False,
-):
-    tokens = start()
-    final_loss, model_size = train(
-        tokens=tokens,
-        num_iterations=num_iterations,
-        batch_size=batch_size,
-        sequence_length=sequence_length,
-        gpus=gpus,
-        skip_test=skip_test,
-    )
-    end(
-        final_loss=final_loss,
-        model_size=model_size,
-        gpus=gpus,
-        batch_size=batch_size,
-        sequence_length=sequence_length,
-        skip_test=skip_test,
-    )
-
-    tokens = start()
-    final_loss, model_size = train(tokens=tokens, num_iterations=num_iterations, batch_size=batch_size, sequence_length=sequence_length, gpus=gpus, skip_test=skip_test)
-    end(final_loss=final_loss, model_size=model_size, gpus=gpus, batch_size=batch_size, sequence_length=sequence_length, skip_test=skip_test)
 
 if __name__ == "__main__":
     # Running the pipeline locally via ZenML's default orchestrator.

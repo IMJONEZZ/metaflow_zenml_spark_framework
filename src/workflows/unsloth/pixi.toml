@@ -1,0 +1,16 @@
+[workspace]
+authors = ["IMJONEZZ <chrisbrousseau304@gmail.com>"]
+channels = ["https://prefix.dev/conda-forge", "pytorch", "conda-forge","nvidia", "xformers"]
+name = "unsloth"
+platforms = ["linux-aarch64"]
+version = "0.1.0"
+
+[tasks]
+
+[system-requirements]
+cuda = "12.4"
+
+[dependencies]
+python = "==3.11"
+cuda-version = "==12.4"
+uv = "*"

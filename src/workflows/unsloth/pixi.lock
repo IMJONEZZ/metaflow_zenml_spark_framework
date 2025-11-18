@@ -1,0 +1,345 @@
+version: 6
+environments:
+  default:
+    channels:
+    - url: https://prefix.dev/conda-forge/
+    - url: https://conda.anaconda.org/pytorch/
+    - url: https://conda.anaconda.org/conda-forge/
+    - url: https://conda.anaconda.org/nvidia/
+    - url: https://conda.anaconda.org/xformers/
+    packages:
+      linux-aarch64:
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/_openmp_mutex-4.5-2_gnu.tar.bz2
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/bzip2-1.0.8-h4777abc_8.conda
+      - conda: https://prefix.dev/conda-forge/noarch/ca-certificates-2025.11.12-hbd8a1cb_0.conda
+      - conda: https://prefix.dev/conda-forge/noarch/cuda-version-12.4-h3060b56_3.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/ld_impl_linux-aarch64-2.45-hd32f0e1_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libffi-3.5.2-hd65408f_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libgcc-15.2.0-he277a41_7.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libgcc-ng-15.2.0-he9431aa_7.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libgomp-15.2.0-he277a41_7.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/liblzma-5.8.1-h86ecc28_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/liblzma-devel-5.8.1-h86ecc28_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libnsl-2.0.1-h86ecc28_1.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libsqlite-3.51.0-h022381a_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libstdcxx-15.2.0-h3f4de04_7.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libuuid-2.41.2-h3e4203c_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/libzlib-1.3.1-h86ecc28_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/ncurses-6.5-ha32ae93_3.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/openssl-3.6.0-h8e36d6e_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/python-3.11.0-ha43d526_1_cpython.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/readline-8.2-h8382b9d_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/tk-8.6.13-noxft_h561c983_103.conda
+      - conda: https://prefix.dev/conda-forge/noarch/tzdata-2025b-h78e105d_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/uv-0.9.10-haeed4ea_0.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/xz-5.8.1-h2dbfc1b_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/xz-gpl-tools-5.8.1-h2dbfc1b_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/xz-tools-5.8.1-h86ecc28_2.conda
+      - conda: https://prefix.dev/conda-forge/linux-aarch64/zstd-1.5.7-hbcf94c1_2.conda
+packages:
+- conda: https://prefix.dev/conda-forge/linux-aarch64/_openmp_mutex-4.5-2_gnu.tar.bz2
+  build_number: 16
+  sha256: 3702bef2f0a4d38bd8288bbe54aace623602a1343c2cfbefd3fa188e015bebf0
+  md5: 6168d71addc746e8f2b8d57dfd2edcea
+  depends:
+  - libgomp >=7.5.0
+  constrains:
+  - openmp_impl 9999
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 23712
+  timestamp: 1650670790230
+- conda: https://prefix.dev/conda-forge/linux-aarch64/bzip2-1.0.8-h4777abc_8.conda
+  sha256: d2a296aa0b5f38ed9c264def6cf775c0ccb0f110ae156fcde322f3eccebf2e01
+  md5: 2921ac0b541bf37c69e66bd6d9a43bca
+  depends:
+  - libgcc >=14
+  license: bzip2-1.0.6
+  license_family: BSD
+  purls: []
+  size: 192536
+  timestamp: 1757437302703
+- conda: https://prefix.dev/conda-forge/noarch/ca-certificates-2025.11.12-hbd8a1cb_0.conda
+  sha256: b986ba796d42c9d3265602bc038f6f5264095702dd546c14bc684e60c385e773
+  md5: f0991f0f84902f6b6009b4d2350a83aa
+  depends:
+  - __unix
+  license: ISC
+  purls: []
+  size: 152432
+  timestamp: 1762967197890
+- conda: https://prefix.dev/conda-forge/noarch/cuda-version-12.4-h3060b56_3.conda
+  sha256: 571d32fbd0dc8df6e85c14d1757549927e272af9c70b935d7e3a553ab0b0b4da
+  md5: c9a3fe8b957176e1a8452c6f3431b0d8
+  constrains:
+  - cudatoolkit 12.4|12.4.*
+  - __cuda >=12
+  license: LicenseRef-NVIDIA-End-User-License-Agreement
+  size: 21022
+  timestamp: 1709765922936
+- conda: https://prefix.dev/conda-forge/linux-aarch64/ld_impl_linux-aarch64-2.45-hd32f0e1_0.conda
+  sha256: 03bb2218867ec25acc81a613101504e1ea308a2714916e45e21636aa08fad181
+  md5: a2a812fed68dd21a013c3db1f5712d77
+  depends:
+  - zstd >=1.5.7,<1.6.0a0
+  constrains:
+  - binutils_impl_linux-aarch64 2.45
+  license: GPL-3.0-only
+  license_family: GPL
+  purls: []
+  size: 790008
+  timestamp: 1763060508415
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libffi-3.5.2-hd65408f_0.conda
+  sha256: 6c3332e78a975e092e54f87771611db81dcb5515a3847a3641021621de76caea
+  md5: 0c5ad486dcfb188885e3cf8ba209b97b
+  depends:
+  - libgcc >=14
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 55586
+  timestamp: 1760295405021
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libgcc-15.2.0-he277a41_7.conda
+  sha256: 616f5960930ad45b48c57f49c3adddefd9423674b331887ef0e69437798c214b
+  md5: afa05d91f8d57dd30985827a09c21464
+  depends:
+  - _openmp_mutex >=4.5
+  constrains:
+  - libgomp 15.2.0 he277a41_7
+  - libgcc-ng ==15.2.0=*_7
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  purls: []
+  size: 510719
+  timestamp: 1759967448307
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libgcc-ng-15.2.0-he9431aa_7.conda
+  sha256: 7d98979b2b5698330007b0146b8b4b95b3790378de12129ce13c9fc88c1ef45a
+  md5: a5ce1f0a32f02c75c11580c5b2f9258a
+  depends:
+  - libgcc 15.2.0 he277a41_7
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  purls: []
+  size: 29261
+  timestamp: 1759967452303
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libgomp-15.2.0-he277a41_7.conda
+  sha256: 0a024f1e4796f5d90fb8e8555691dad1b3bdfc6ac3c2cd14d876e30f805fcac7
+  md5: 34cef4753287c36441f907d5fdd78d42
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  purls: []
+  size: 450308
+  timestamp: 1759967379407
+- conda: https://prefix.dev/conda-forge/linux-aarch64/liblzma-5.8.1-h86ecc28_2.conda
+  sha256: 498ea4b29155df69d7f20990a7028d75d91dbea24d04b2eb8a3d6ef328806849
+  md5: 7d362346a479256857ab338588190da0
+  depends:
+  - libgcc >=13
+  constrains:
+  - xz 5.8.1.*
+  license: 0BSD
+  purls: []
+  size: 125103
+  timestamp: 1749232230009
+- conda: https://prefix.dev/conda-forge/linux-aarch64/liblzma-devel-5.8.1-h86ecc28_2.conda
+  sha256: 3bd4de89c0cf559a944408525460b3de5495b4c21fb92c831ff0cc96398a7272
+  md5: 236d1ebc954a963b3430ce403fbb0896
+  depends:
+  - libgcc >=13
+  - liblzma 5.8.1 h86ecc28_2
+  license: 0BSD
+  purls: []
+  size: 440873
+  timestamp: 1749232400775
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libnsl-2.0.1-h86ecc28_1.conda
+  sha256: c0dc4d84198e3eef1f37321299e48e2754ca83fd12e6284754e3cb231357c3a5
+  md5: d5d58b2dc3e57073fe22303f5fed4db7
+  depends:
+  - libgcc >=13
+  license: LGPL-2.1-only
+  license_family: GPL
+  purls: []
+  size: 34831
+  timestamp: 1750274211
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libsqlite-3.51.0-h022381a_0.conda
+  sha256: f66a40b6e07a6f8ce6ccbd38d079b7394217d8f8ae0a05efa644aa0a40140671
+  md5: 8920ce2226463a3815e2183c8b5008b8
+  depends:
+  - libgcc >=14
+  - libzlib >=1.3.1,<2.0a0
+  license: blessing
+  purls: []
+  size: 938476
+  timestamp: 1762299829629
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libstdcxx-15.2.0-h3f4de04_7.conda
+  sha256: 4c6d1a2ae58044112233a57103bbf06000bd4c2aad44a0fd3b464b05fa8df514
+  md5: 6a2f0ee17851251a85fbebafbe707d2d
+  depends:
+  - libgcc 15.2.0 he277a41_7
+  constrains:
+  - libstdcxx-ng ==15.2.0=*_7
+  license: GPL-3.0-only WITH GCC-exception-3.1
+  license_family: GPL
+  purls: []
+  size: 3831785
+  timestamp: 1759967470295
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libuuid-2.41.2-h3e4203c_0.conda
+  sha256: 7aed28ac04e0298bf8f7ad44a23d6f8ee000aa0445807344b16fceedc67cce0f
+  md5: 3a68e44fdf2a2811672520fdd62996bd
+  depends:
+  - libgcc >=14
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 39172
+  timestamp: 1758626850999
+- conda: https://prefix.dev/conda-forge/linux-aarch64/libzlib-1.3.1-h86ecc28_2.conda
+  sha256: 5a2c1eeef69342e88a98d1d95bff1603727ab1ff4ee0e421522acd8813439b84
+  md5: 08aad7cbe9f5a6b460d0976076b6ae64
+  depends:
+  - libgcc >=13
+  constrains:
+  - zlib 1.3.1 *_2
+  license: Zlib
+  license_family: Other
+  purls: []
+  size: 66657
+  timestamp: 1727963199518
+- conda: https://prefix.dev/conda-forge/linux-aarch64/ncurses-6.5-ha32ae93_3.conda
+  sha256: 91cfb655a68b0353b2833521dc919188db3d8a7f4c64bea2c6a7557b24747468
+  md5: 182afabe009dc78d8b73100255ee6868
+  depends:
+  - libgcc >=13
+  license: X11 AND BSD-3-Clause
+  purls: []
+  size: 926034
+  timestamp: 1738196018799
+- conda: https://prefix.dev/conda-forge/linux-aarch64/openssl-3.6.0-h8e36d6e_0.conda
+  sha256: 8dd3b4c31fe176a3e51c5729b2c7f4c836a2ce3bd5c82082dc2a503ba9ee0af3
+  md5: 7624c6e01aecba942e9115e0f5a2af9d
+  depends:
+  - ca-certificates
+  - libgcc >=14
+  license: Apache-2.0
+  license_family: Apache
+  purls: []
+  size: 3705625
+  timestamp: 1762841024958
+- conda: https://prefix.dev/conda-forge/linux-aarch64/python-3.11.0-ha43d526_1_cpython.conda
+  build_number: 1
+  sha256: 88a786ac9fbf6d5b1e35036f0cb1e7dad694b3be9fa79dd6a71afa954bf02ae3
+  md5: e537239a305ab94925b6cd226cd523da
+  depends:
+  - bzip2 >=1.0.8,<2.0a0
+  - ld_impl_linux-aarch64 >=2.36.1
+  - libffi >=3.4,<4.0a0
+  - libgcc-ng >=12
+  - libnsl >=2.0.0,<2.1.0a0
+  - libsqlite >=3.40.0,<4.0a0
+  - libuuid >=2.32.1,<3.0a0
+  - libzlib >=1.2.13,<2.0.0a0
+  - ncurses >=6.3,<7.0a0
+  - openssl >=3.0.7,<4.0a0
+  - readline >=8.1.2,<9.0a0
+  - tk >=8.6.12,<8.7.0a0
+  - tzdata
+  - xz >=5.2.6,<6.0a0
+  constrains:
+  - python_abi 3.11.* *_cp311
+  license: Python-2.0
+  purls: []
+  size: 15349465
+  timestamp: 1673672639101
+- conda: https://prefix.dev/conda-forge/linux-aarch64/readline-8.2-h8382b9d_2.conda
+  sha256: 54bed3a3041befaa9f5acde4a37b1a02f44705b7796689574bcf9d7beaad2959
+  md5: c0f08fc2737967edde1a272d4bf41ed9
+  depends:
+  - libgcc >=13
+  - ncurses >=6.5,<7.0a0
+  license: GPL-3.0-only
+  license_family: GPL
+  purls: []
+  size: 291806
+  timestamp: 1740380591358
+- conda: https://prefix.dev/conda-forge/linux-aarch64/tk-8.6.13-noxft_h561c983_103.conda
+  sha256: 154e73f6269f92ad5257aa2039278b083998fd19d371e150f307483fb93c07ae
+  md5: 631db4799bc2bfe4daccf80bb3cbc433
+  depends:
+  - libgcc >=13
+  - libzlib >=1.3.1,<2.0a0
+  constrains:
+  - xorg-libx11 >=1.8.12,<2.0a0
+  license: TCL
+  license_family: BSD
+  purls: []
+  size: 3333495
+  timestamp: 1763059192223
+- conda: https://prefix.dev/conda-forge/noarch/tzdata-2025b-h78e105d_0.conda
+  sha256: 5aaa366385d716557e365f0a4e9c3fca43ba196872abbbe3d56bb610d131e192
+  md5: 4222072737ccff51314b5ece9c7d6f5a
+  license: LicenseRef-Public-Domain
+  purls: []
+  size: 122968
+  timestamp: 1742727099393
+- conda: https://prefix.dev/conda-forge/linux-aarch64/uv-0.9.10-haeed4ea_0.conda
+  sha256: 7c1a2fb73f517f4419f0ad55604ddfef4dc905e440645817365231bfba80a3e6
+  md5: f237bb454c4b15d69ac1160b250f178a
+  depends:
+  - libgcc >=14
+  - libstdcxx >=14
+  - libgcc >=14
+  constrains:
+  - __glibc >=2.17
+  license: Apache-2.0 OR MIT
+  size: 16613488
+  timestamp: 1763412687652
+- conda: https://prefix.dev/conda-forge/linux-aarch64/xz-5.8.1-h2dbfc1b_2.conda
+  sha256: f8b2b55a672402bf6c870529c20a1a006f102e1604682d83c30a57ec9f3de55a
+  md5: 176b552740e8836d92c4935244d6756b
+  depends:
+  - libgcc >=13
+  - liblzma 5.8.1 h86ecc28_2
+  - liblzma-devel 5.8.1 h86ecc28_2
+  - xz-gpl-tools 5.8.1 h2dbfc1b_2
+  - xz-tools 5.8.1 h86ecc28_2
+  license: 0BSD AND LGPL-2.1-or-later AND GPL-2.0-or-later
+  purls: []
+  size: 23963
+  timestamp: 1749232914469
+- conda: https://prefix.dev/conda-forge/linux-aarch64/xz-gpl-tools-5.8.1-h2dbfc1b_2.conda
+  sha256: 1e328310210b507064d6b5916c66ce49d4e1ba2fba5a710a5371e6e0432a4731
+  md5: 0d5f95b450e75655b5e76ae626197383
+  depends:
+  - libgcc >=13
+  - liblzma 5.8.1 h86ecc28_2
+  constrains:
+  - xz 5.8.1.*
+  license: 0BSD AND LGPL-2.1-or-later AND GPL-2.0-or-later
+  purls: []
+  size: 33948
+  timestamp: 1749232746339
+- conda: https://prefix.dev/conda-forge/linux-aarch64/xz-tools-5.8.1-h86ecc28_2.conda
+  sha256: b8653678a9954303b948a4be79092101b926087c41fc06bd26573876bb6d3e2a
+  md5: 04a5f1734c23daf8c7fe59045f755efb
+  depends:
+  - libgcc >=13
+  - liblzma 5.8.1 h86ecc28_2
+  constrains:
+  - xz 5.8.1.*
+  license: 0BSD AND LGPL-2.1-or-later
+  purls: []
+  size: 101611
+  timestamp: 1749232578309
+- conda: https://prefix.dev/conda-forge/linux-aarch64/zstd-1.5.7-hbcf94c1_2.conda
+  sha256: 0812e7b45f087cfdd288690ada718ce5e13e8263312e03b643dd7aa50d08b51b
+  md5: 5be90c5a3e4b43c53e38f50a85e11527
+  depends:
+  - libgcc >=13
+  - libstdcxx >=13
+  - libzlib >=1.3.1,<2.0a0
+  license: BSD-3-Clause
+  license_family: BSD
+  purls: []
+  size: 551176
+  timestamp: 1742433378347

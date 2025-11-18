@@ -136,25 +136,6 @@ class NeuralNetFlow(FlowSpec):
 
         self.next(self.train)
 
-    def _evaluate_model(self) -> float:
-        """Evaluate the model on test data and return accuracy percentage."""
-        import torch
-
-        self.model.eval()  # set model to evaluation mode
-        correct = 0
-        total = 0
-
-        with torch.no_grad():
-            for data, target in self.test_loader:
-                data, target = data.to(self.device), target.to(self.device)
-                outputs = self.model(data)
-                _, predicted = torch.max(outputs.data, 1)
-                total += target.size(0)
-                correct += (predicted == target).sum().item()
-
-        accuracy = 100 * correct / total if total > 0 else 0
-        return accuracy
-
     @step
     def train(self):
         """Train the model for ``self.epochs`` epochs using the training DataLoader."""
@@ -215,6 +196,25 @@ class NeuralNetFlow(FlowSpec):
         )
 
         self.next(self.end)
+
+    def _evaluate_model(self) -> float:
+        """Evaluate the trained model on test data and return accuracy percentage."""
+        import torch
+
+        self.model.eval()
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for data, target in self.test_loader:
+                data, target = data.to(self.device), target.to(self.device)
+                outputs = self.model(data)
+                _, predicted = torch.max(outputs.data, 1)
+                total += target.size(0)
+                correct += (predicted == target).sum().item()
+
+        accuracy = 100 * correct / total if total > 0 else 0
+        return accuracy
 
     @step
     def end(self):
