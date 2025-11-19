@@ -43,7 +43,7 @@ from zenml.types import HTMLString
 from utils.nlp_visualization import generate_nlp_html_visualization
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def generate_diverse_texts(num_samples: int = 50) -> Annotated[List[str], "texts"]:
     """
     Generate diverse text samples for comprehensive NLP analysis.
@@ -140,7 +140,7 @@ def generate_diverse_texts(num_samples: int = 50) -> Annotated[List[str], "texts
     return expanded_texts[:num_samples]
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def setup_nlp_libraries() -> Annotated[Dict[str, Any], "library_status"]:
     """
     Setup and download required NLTK data and spaCy models.
@@ -156,7 +156,6 @@ def setup_nlp_libraries() -> Annotated[Dict[str, Any], "library_status"]:
 
         # Download required NLTK data
         nltk_resources = [
-            "punkt",  # Tokenization
             "punkt_tab",  # Enhanced tokenization (newer NLTK)
             "stopwords",  # Stop words list
             "vader_lexicon",  # Sentiment analysis
@@ -191,7 +190,8 @@ def setup_nlp_libraries() -> Annotated[Dict[str, Any], "library_status"]:
                 Fore.YELLOW
                 + "⚠️ spaCy English model not found. Continuing with basic text processing..."
             )
-            nlp = None
+            spacy.download("en_core_web_sm")
+            nlp = spacy.load("en_core_web_sm")
 
         library_status = {
             "nltk_available": True,
@@ -419,7 +419,7 @@ def classical_nlp_analysis(
     return classical_results
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def advanced_linguistic_analysis(
     texts: List[str], library_status: Dict[str, Any]
 ) -> Annotated[Dict[str, Any], "advanced_results"]:

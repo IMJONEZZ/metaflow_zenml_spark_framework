@@ -8,6 +8,8 @@ version = "0.1.0"
 
 [dependencies]
 python = ">=3.11,<3.13"
+cuda-version = "==13.0"
+pip = ">=25.3,<26"
 
 [pypi-dependencies]
 metaflow = ">=2.19.4, <3"
@@ -26,7 +28,6 @@ packaging = ">=25.0, <26"
 ninja = ">=1.13.0, <2"
 huggingface-hub = ">=0.36.0, <0.37"
 gpustat = ">=1.1.1, <2"
-unsloth = { git = "https://github.com/unslothai/unsloth.git" }
 trl = ">=0.25.1, <0.26"
 nltk = ">=3.9.2, <4"
 spacy = ">=3.8.11, <4"
