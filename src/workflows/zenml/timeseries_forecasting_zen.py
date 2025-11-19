@@ -12,14 +12,15 @@ Usage:
 """
 
 import os
-from typing import Dict, List
+from typing import Annotated, Any, Dict, List
 
+import numpy as np
 # ZenML imports
 from zenml import pipeline, step
 
 
 @step(enable_cache=True)
-def generate_time_series(num_points: int = 200) -> List[float]:
+def generate_time_series(num_points: int = 200) -> Annotated[List[float], "time_series_data"]:
     """Generate simple time series data."""
     print("""
         past    now    future
@@ -56,7 +57,7 @@ def generate_time_series(num_points: int = 200) -> List[float]:
 
 
 @step(enable_cache=True)
-def create_sequences(data: List[float], sequence_length: int = 10) -> Dict:
+def create_sequences(data: List[float], sequence_length: int = 10) -> Annotated[Dict[str, Any], "sequences"]:
     """Create input sequences and targets for prediction."""
 
     print(f"Creating sequences with length {sequence_length}")
@@ -75,7 +76,7 @@ def create_sequences(data: List[float], sequence_length: int = 10) -> Dict:
 
 
 @step(enable_cache=True)
-def build_simple_model() -> object:
+def build_simple_model() -> Annotated[Any, "model"]:
     """Build a simple predictive model."""
 
     try:
@@ -111,7 +112,7 @@ def build_simple_model() -> object:
 
 
 @step(enable_cache=False)
-def train_model(features_data: Dict, model: object) -> object:
+def train_model(features_data: Dict[str, Any], model: Any) -> Annotated[Any, "trained_model"]:
     """Train the time series forecasting model."""
 
     import numpy as np
@@ -144,7 +145,7 @@ def train_model(features_data: Dict, model: object) -> object:
 
 
 @step(enable_cache=False)
-def evaluate_model(features_data: Dict, trained_model: object) -> Dict:
+def evaluate_model(features_data: Dict[str, Any], trained_model: Any) -> Annotated[Dict[str, Any], "evaluation_results"]:
     """Evaluate the time series forecasting model."""
 
     import numpy as np
@@ -212,7 +213,7 @@ def evaluate_model(features_data: Dict, trained_model: object) -> Dict:
 @pipeline
 def simple_timeseries_pipeline(
     num_points: int = 200, sequence_length: int = 10
-) -> Dict:
+) -> Dict[str, Any]:
     """Complete time series forecasting pipeline."""
 
     # Generate data

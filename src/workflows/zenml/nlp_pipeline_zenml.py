@@ -19,7 +19,7 @@ import re
 import string
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 
 # ZenML imports with graceful fallback
 try:
@@ -171,7 +171,7 @@ class AdvancedNLPProcessor:
         }
 
     @step
-    def preprocess_text(self, text: str) -> Dict[str, Any]:
+    def preprocess_text(self, text: str) -> Annotated[Dict[str, Any], "preprocessing_results"]:
         """
         Comprehensive text preprocessing with rich feature extraction.
 
@@ -279,7 +279,7 @@ class AdvancedNLPProcessor:
         return [s.strip() for s in sentences if s.strip()]
 
     @step
-    def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+    def analyze_sentiment(self, text: str) -> Annotated[Dict[str, Any], "sentiment_results"]:
         """
         Comprehensive sentiment analysis using multiple methodologies.
 
@@ -393,7 +393,7 @@ class AdvancedNLPProcessor:
         return results
 
     @step
-    def extract_named_entities(self, text: str) -> List[Dict[str, Any]]:
+    def extract_named_entities(self, text: str) -> Annotated[List[Dict[str, Any]], "entities"]:
         """
         Advanced named entity recognition using sophisticated pattern matching.
 
@@ -522,7 +522,7 @@ class AdvancedNLPProcessor:
         return min(confidence, 1.0)
 
     @step
-    def calculate_readability_score(self, text: str) -> Dict[str, Any]:
+    def calculate_readability_score(self, text: str) -> Annotated[Dict[str, Any], "readability_results"]:
         """
         Comprehensive readability assessment using multiple metrics.
 
@@ -637,7 +637,7 @@ class AdvancedNLPProcessor:
     @step
     def generate_text_summary(
         self, text: str, max_sentences: int = 3
-    ) -> Dict[str, Any]:
+    ) -> Annotated[Dict[str, Any], "summary_results"]:
         """
         Intelligent text summarization using advanced sentence scoring.
 
@@ -756,7 +756,7 @@ class AdvancedNLPProcessor:
         return selected
 
     @step
-    def extract_keywords(self, text: str, max_keywords: int = 10) -> Dict[str, Any]:
+    def extract_keywords(self, text: str, max_keywords: int = 10) -> Annotated[Dict[str, Any], "keywords"]:
         """
         Advanced keyword extraction using TF-IDF simulation and linguistic analysis.
 

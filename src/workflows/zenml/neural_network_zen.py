@@ -6,7 +6,8 @@ It loads the MNIST dataset, builds a simple CNN model with PyTorch,
 trains it for a number of epochs and reports test accuracy.
 """
 
-from typing import Annotated, Tuple
+import os
+from typing import Annotated, Tuple, Type, Any
 
 import torch
 import torch.nn as nn
@@ -16,6 +17,9 @@ import torch.utils.data
 # ZenML imports
 from zenml import get_step_context, log_metadata, pipeline, step
 from zenml.artifacts.artifact_config import ArtifactConfig
+from zenml.enums import ArtifactType
+from zenml.io import fileio
+from zenml.materializers.base_materializer import BaseMaterializer
 
 
 @step
@@ -88,6 +92,40 @@ class SimpleCNN(nn.Module):
         return self.fc(x)
 
 
+class SimpleCNNMaterializer(BaseMaterializer):
+    """Custom materializer for SimpleCNN models.
+    
+    This materializer saves the model's state dict and recreates the model
+    when loading, avoiding class resolution issues with __main__ module.
+    """
+    
+    ASSOCIATED_TYPES = (SimpleCNN, nn.Module)
+    ASSOCIATED_ARTIFACT_TYPE = ArtifactType.MODEL
+    
+    def load(self, data_type: Type[Any]) -> SimpleCNN:
+        """Load SimpleCNN from storage."""
+        # Create a new instance of the model
+        model = SimpleCNN()
+        
+        # Load the state dict
+        state_dict_path = os.path.join(self.uri, "model_state_dict.pt")
+        with fileio.open(state_dict_path, "rb") as f:
+            state_dict = torch.load(f, map_location="cpu")
+        
+        # Load the state dict into the model
+        model.load_state_dict(state_dict)
+        model.eval()
+        
+        return model
+    
+    def save(self, data: SimpleCNN) -> None:
+        """Save SimpleCNN to storage."""
+        # Save the model's state dict
+        state_dict_path = os.path.join(self.uri, "model_state_dict.pt")
+        with fileio.open(state_dict_path, "wb") as f:
+            torch.save(data.state_dict(), f)
+
+
 @step
 def build_model() -> Annotated[nn.Module, "model"]:
     """Instantiate the CNN model and return it.
@@ -98,7 +136,7 @@ def build_model() -> Annotated[nn.Module, "model"]:
     return model
 
 
-@step
+@step(output_materializers={"trained_model": SimpleCNNMaterializer})
 def train(
     model: nn.Module,
     train_loader: torch.utils.data.DataLoader,
