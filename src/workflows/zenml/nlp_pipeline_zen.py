@@ -40,7 +40,7 @@ from zenml import pipeline as zenml_pipeline
 from zenml import step
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def generate_diverse_texts(num_samples: int = 50) -> List[str]:
     """
     Generate diverse text samples for comprehensive NLP analysis.
@@ -137,7 +137,7 @@ def generate_diverse_texts(num_samples: int = 50) -> List[str]:
     return expanded_texts[:num_samples]
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def setup_nlp_libraries() -> Dict[str, Any]:
     """
     Setup and download required NLTK data and spaCy models.
@@ -153,7 +153,6 @@ def setup_nlp_libraries() -> Dict[str, Any]:
 
         # Download required NLTK data
         nltk_resources = [
-            "punkt",  # Tokenization
             "punkt_tab",  # Enhanced tokenization (newer NLTK)
             "stopwords",  # Stop words list
             "vader_lexicon",  # Sentiment analysis
@@ -188,7 +187,8 @@ def setup_nlp_libraries() -> Dict[str, Any]:
                 Fore.YELLOW
                 + "⚠️ spaCy English model not found. Continuing with basic text processing..."
             )
-            nlp = None
+            spacy.download("en_core_web_sm")
+            nlp = spacy.load("en_core_web_sm")
 
         library_status = {
             "nltk_available": True,
@@ -416,7 +416,7 @@ def classical_nlp_analysis(
     return classical_results
 
 
-@step(enable_cache=True)
+@step(enable_cache=False)
 def advanced_linguistic_analysis(
     texts: List[str], library_status: Dict[str, Any]
 ) -> Dict[str, Any]:
