@@ -6,12 +6,11 @@ It loads the Iris dataset, trains an XGBoost classifier with cross‑validation,
 and prints the mean accuracy and standard deviation.
 """
 
-from typing import List, Tuple
-
+from typing import Annotated, Tuple, List
 import numpy as np
 
 # ZenML imports
-from zenml import pipeline, step
+from zenml import get_step_context, log_metadata, pipeline, step
 
 # Hyper‑parameters (mirroring the Metaflow defaults)
 RANDOM_STATE = 12
@@ -21,7 +20,7 @@ K_FOLD = 5
 
 
 @step
-def start() -> Tuple[List[List[float]], List[int]]:
+def start() -> Tuple[Annotated[List[List[float]], "features"], Annotated[List[int], "labels"]]:
     """Load the Iris dataset and return features/labels as JSON‑serializable lists."""
     from sklearn import datasets
 
@@ -50,7 +49,7 @@ def start() -> Tuple[List[List[float]], List[int]]:
 
 
 @step
-def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
+def train_xgb(X: List[List[float]], y: List[int]) -> Annotated[List[float], "scores"]:
     """Train an ``XGBClassifier`` and return the cross‑validation scores as a JSON‑serializable list.
 
     The parameters are identical to those used in the Metaflow example.
@@ -73,24 +72,31 @@ def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
 
 
 @step
-def end(scores: List[float]) -> None:
+def end(scores: List[float]) -> Tuple[Annotated[float, "mean"], Annotated[float, "std"]]:
     """Print the mean accuracy and standard deviation.
 
-    The output format matches the original Metaflow flow.
+    The output format matches the original Metaflow flow. 
+    Additionally, return the mean and standard deviation as annotations.
     """
     import numpy as np
+
+    context = get_step_context()
 
     mean = round(100 * float(np.mean(scores)), 3)
     std = round(100 * float(np.std(scores)), 3)
     print(f"Gradient Boosted Trees Model Accuracy: {mean} \u00b1 {std}%")
 
 
+    log_metadata(
+        metadata={"mean": mean, "std": std}, 
+        run_id_name_or_prefix=context.pipeline_run.id
+    )
+    return mean, std
+
 @pipeline
 def gradient_boosted_trees_pipeline():
     X, y = start()
     scores = train_xgb(X=X, y=y)
-    end(scores=scores)
-
     end(scores=scores)
 
 

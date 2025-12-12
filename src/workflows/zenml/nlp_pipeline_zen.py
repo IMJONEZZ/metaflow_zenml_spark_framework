@@ -14,7 +14,7 @@ Usage:
 
 import os
 import random
-from typing import Any, Dict, List
+from typing import Annotated, Any, Dict, List
 
 try:
     from colorama import Fore, Style, init
@@ -38,10 +38,13 @@ except ImportError:
 
 from zenml import pipeline as zenml_pipeline
 from zenml import step
+from zenml.types import HTMLString
+
+from utils.nlp_visualization import generate_nlp_html_visualization
 
 
 @step(enable_cache=False)
-def generate_diverse_texts(num_samples: int = 50) -> List[str]:
+def generate_diverse_texts(num_samples: int = 50) -> Annotated[List[str], "texts"]:
     """
     Generate diverse text samples for comprehensive NLP analysis.
 
@@ -138,7 +141,7 @@ def generate_diverse_texts(num_samples: int = 50) -> List[str]:
 
 
 @step(enable_cache=False)
-def setup_nlp_libraries() -> Dict[str, Any]:
+def setup_nlp_libraries() -> Annotated[Dict[str, Any], "library_status"]:
     """
     Setup and download required NLTK data and spaCy models.
 
@@ -221,7 +224,7 @@ def setup_nlp_libraries() -> Dict[str, Any]:
 @step(enable_cache=False)
 def classical_nlp_analysis(
     texts: List[str], library_status: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Annotated[Dict[str, Any], "classical_results"]:
     """
     Perform classical NLP analysis using NLTK.
 
@@ -419,7 +422,7 @@ def classical_nlp_analysis(
 @step(enable_cache=False)
 def advanced_linguistic_analysis(
     texts: List[str], library_status: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Annotated[Dict[str, Any], "advanced_results"]:
     """
     Perform advanced linguistic analysis using spaCy or fallback methods.
 
@@ -660,7 +663,7 @@ def _basic_linguistic_analysis(texts: List[str]) -> Dict[str, Any]:
 @step(enable_cache=False)
 def enhanced_sentiment_analysis(
     texts: List[str], library_status: Dict[str, Any]
-) -> Dict[str, Any]:
+) -> Annotated[Dict[str, Any], "sentiment_results"]:
     """
     Perform enhanced sentiment analysis using TextBlob and spaCy.
 
@@ -790,7 +793,7 @@ def generate_nlp_insights(
     classical_results: Dict[str, Any],
     advanced_results: Dict[str, Any],
     sentiment_results: Dict[str, Any],
-) -> List[str]:
+) -> Annotated[List[str], "insights"]:
     """
     Generate comprehensive insights from all NLP analysis results.
 
@@ -896,6 +899,37 @@ def generate_nlp_insights(
     print(Fore.GREEN + f"✅ Generated {len(insights)} insights and recommendations")
 
     return insights
+
+
+@step(enable_cache=False)
+def generate_html_report(
+    library_status: Dict[str, Any],
+    classical_results: Dict[str, Any],
+    advanced_results: Dict[str, Any],
+    sentiment_results: Dict[str, Any],
+    insights: List[str],
+) -> Annotated[HTMLString, "nlp_report"]:
+    """
+    Generate an HTML visualization report from all NLP analysis results.
+    
+    Args:
+        library_status: Status of available libraries
+        classical_results: Classical NLP analysis findings
+        advanced_results: Advanced linguistic features
+        sentiment_results: Sentiment analysis outcomes
+        insights: Generated insights and recommendations
+        
+    Returns:
+        HTMLString visualization for ZenML dashboard
+    """
+    html_content = generate_nlp_html_visualization(
+        library_status,
+        classical_results,
+        advanced_results,
+        sentiment_results,
+        insights,
+    )
+    return HTMLString(html_content)
 
 
 @step(enable_cache=False)
@@ -1103,6 +1137,11 @@ def advanced_nlp_processing_pipeline(num_samples: int = 50) -> None:
 
     insights = generate_nlp_insights(
         classical_results, advanced_results, sentiment_results
+    )
+
+    # Generate HTML visualization report
+    html_report = generate_html_report(
+        library_status, classical_results, advanced_results, sentiment_results, insights
     )
 
     # Display comprehensive results

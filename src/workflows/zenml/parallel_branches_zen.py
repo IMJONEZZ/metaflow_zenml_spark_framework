@@ -7,7 +7,7 @@ All data exchanged between steps is JSON‑serializable (lists), avoiding
 ZenML's built‑in container materializer limitations.
 """
 
-from typing import List, Tuple
+from typing import Annotated, List, Tuple
 
 import numpy as np
 
@@ -23,7 +23,7 @@ EVAL_METRIC = "mlogloss"
 K_FOLD = 5
 
 @step
-def start() -> Tuple[List[List[float]], List[int]]:
+def start() -> Tuple[Annotated[List[List[float]], "features"], Annotated[List[int], "labels"]]:
     """Load the Iris dataset and return features/labels as JSON‑serializable lists."""
     print("""
         ○
@@ -49,7 +49,7 @@ def start() -> Tuple[List[List[float]], List[int]]:
 
 
 @step
-def train_rf(X: List[List[float]], y: List[int]) -> List[float]:
+def train_rf(X: List[List[float]], y: List[int]) -> Annotated[List[float], "rf_scores"]:
     """Train a RandomForestClassifier and return its CV scores as a list."""
     import numpy as np
     from sklearn.ensemble import RandomForestClassifier
@@ -68,7 +68,7 @@ def train_rf(X: List[List[float]], y: List[int]) -> List[float]:
 
 
 @step
-def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
+def train_xgb(X: List[List[float]], y: List[int]) -> Annotated[List[float], "xgb_scores"]:
     """Train an XGBClassifier and return its CV scores as a list."""
     import numpy as np
     from xgboost import XGBClassifier
@@ -89,7 +89,7 @@ def train_xgb(X: List[List[float]], y: List[int]) -> List[float]:
 @step
 def score(
     rf_scores: List[float], xgb_scores: List[float]
-) -> List[Tuple[str, float, float]]:
+) -> Annotated[List[Tuple[str, float, float]], "results"]:
     """Combine the results from both models into a list of (name, mean, std)."""
     import numpy as np
 
@@ -114,8 +114,6 @@ def parallel_trees_pipeline():
     rf_scores = train_rf(X=X, y=y)
     xgb_scores = train_xgb(X=X, y=y)
     results = score(rf_scores=rf_scores, xgb_scores=xgb_scores)
-    end(results=results)
-
     end(results=results)
 
 if __name__ == "__main__":

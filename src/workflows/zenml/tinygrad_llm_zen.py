@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import Annotated, List, Tuple
 
 import numpy as np
 
@@ -178,7 +178,7 @@ class GPT:
 
 
 @step(enable_cache=False)
-def start() -> List[int]:
+def start() -> Annotated[List[int], "tokens"]:
     """Load the text dataset and return the tokens as a list."""
 
     # Unique ASCII Art for ZenML TinyGrad LLM Training
@@ -235,7 +235,7 @@ def train(
     sequence_length: int,
     gpus: int,
     skip_test: bool,
-) -> Tuple[float, float]:
+) -> Tuple[Annotated[float, "final_loss"], Annotated[float, "model_size"]]:
     """Finetune the GPT-2 model for a specified number of iterations."""
 
     print(
