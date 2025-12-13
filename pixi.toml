@@ -1,7 +1,7 @@
 [workspace]
 channels = ["https://prefix.dev/conda-forge","conda-forge","nvidia"]
 name = "metaflowdemo"
-platforms = ["linux-aarch64", "osx-arm64"]
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
@@ -42,10 +42,44 @@ tinygrad_llm_zen = { cmd = "python src/workflows/zenml/tinygrad_llm_zen.py", dep
 # ZenML cleanup task
 zenml-server-down = "pixi run zenml logout"
 
+[activation.env]
+    # Core ROCm Configuration
+    ROCM_PATH = "/opt/rocm"
+    HSA_OVERRIDE_GFX_VERSION = "11.0.3" 
+    HIP_VISIBLE_DEVICES = "0"
+    PYTORCH_ROCM_ARCH = "gfx1103"
+    
+    # AMD GPU Memory Management (Enhanced for CNN stability)
+    LIBDRM_AMDGPU_IDS_PATH = "/usr/share/libdrm/amdgpu.ids"
+    HSA_ENABLE_SDMA = "0" 
+    
+    # Additional Memory Management Variables
+    PYTORCH_HIP_ALLOC_CONF = "max_split_size_mb:128"
+    HSA_FORCE_FINE_GRAIN_PCIE = "1" 
+    MIOPEN_USER_DB_PATH = "/tmp/miopen_cache"
+    
+    # CNN-Specific Memory Fault Prevention
+    ROCM_L2_CACHING = "1"
+    HCC_AMDGPU_TARGET = "gfx1103"
+    
+    # PyTorch ROCm Optimizations
+    TORCH_HIP_VISIBLE_DEVICES = "0"
+    HIP_LAUNCH_BLOCKING = "0"  # For debugging: set to "1" if needed
+    
+    # Environment for better memory handling
+    MALLOC_CONF = "background_thread:true,metadata_thp:auto,dirty_decay_ms:30000,muzzy_decay_ms:30000"
+    
+    # ROCm System Variables
+    HSA_NO_SCRATCH_RECLAIM = "1"
+    HCC_COLLECT_COUNTS = "0"
+
+[target.linux-aarch64.dependencies]
+cuda-version = "==13.0"
+
 [dependencies]
 python = ">=3.11,<3.13"
-cuda-version = "==13.0"
 pip = ">=25.3,<26"
+uv = ">=0.9.17,<0.10"
 
 [pypi-dependencies]
 metaflow = ">=2.19.4, <3"
