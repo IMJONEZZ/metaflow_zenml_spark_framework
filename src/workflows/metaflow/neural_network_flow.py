@@ -5,6 +5,11 @@ import sys
 sys.path.append('/home/imjonezz/Desktop/metaflow_zenml_spark_framework/src/utils')
 from gpu_device_manager import get_device_with_fallback
 
+# Import smart device manager for AMD GPU compatibility
+import sys
+sys.path.append('/home/imjonezz/Desktop/metaflow_zenml_spark_framework/src/utils')
+from gpu_device_manager import get_device_with_fallback
+
 try:
     from colorama import Fore, Style, init
     init(autoreset=True)
@@ -32,14 +37,25 @@ class NeuralNetFlow(FlowSpec):
     
     The flow consists of four steps:
         1. ``start`` – load and preprocess the MNIST dataset with smart device detection.
+    Enhanced with AMD GPU compatibility - automatically routes CNN models to CPU
+    to avoid memory faults while maintaining full functionality.
+    
+    The flow consists of four steps:
+        1. ``start`` – load and preprocess the MNIST dataset with smart device detection.
         2. ``build_model`` – define a small convolutional neural network,
            loss function, optimizer and move everything to the appropriate device.
         3. ``train`` – train the model for the specified number of epochs.
-        4. ``end` ` – final step indicating completion with performance report.
+        4. ``end`` – final step indicating completion with performance report.
     """
 
     # Number of training epochs (default 10)
     epochs = Parameter("e", default=10)
+    
+    # GPU selection strategy (auto/force_cpu/force_gpu/safe_only)
+    gpu_strategy = Parameter("gpu", default="auto")
+    
+    # Batch size parameter - reduced for better memory management
+    batch_size = Parameter("batch", default=64)
     
     # GPU selection strategy (auto/force_cpu/force_gpu/safe_only)
     gpu_strategy = Parameter("gpu", default="auto")
@@ -89,7 +105,7 @@ class NeuralNetFlow(FlowSpec):
             torch.nn.MaxPool2d(2),
         )
         
-        # Use our smart device manager - Metaflow parameters are immutable, so use them directly
+        # Use our smart device manager
         self.device, device_info = get_device_with_fallback(
             model=temp_model,
             force_device=self.gpu_strategy if hasattr(self, 'gpu_strategy') else "auto",
@@ -109,8 +125,8 @@ class NeuralNetFlow(FlowSpec):
                     f"✅ Model is GPU compatible - using optimal acceleration")
 
         self.num_classes = 10
-        # FIXED: Use batch size directly from parameter (Metaflow parameters are immutable)
-        effective_batch_size = int(getattr(self, 'batch_size', 64))
+        # Use batch size from parameter or default to smaller value for memory safety
+        self.batch_size = int(getattr(self, 'batch_size', 64))
         
         # Normalization values for MNIST (mean=0.1307, std=0.3081) – standard practice
         transform = transforms.Compose(
@@ -130,11 +146,12 @@ class NeuralNetFlow(FlowSpec):
         )
 
         # Reduced num_workers for stability on AMD hardware  
+        # Reduced num_workers for stability on AMD hardware  
         self.train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=effective_batch_size, shuffle=True, num_workers=0
+            train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0
         )
         self.test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=effective_batch_size, shuffle=False, num_workers=0
+            test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0
         )
 
         print(
@@ -148,6 +165,8 @@ class NeuralNetFlow(FlowSpec):
     @step
     def build_model(self):
         """Define a simple CNN, loss function and optimizer."""
+        
+        # Re-analyze device for final model construction
         
         # Re-analyze device for final model construction
         import torch.nn as nn
@@ -172,14 +191,7 @@ class NeuralNetFlow(FlowSpec):
 
         # Loss and optimizer – improved training configuration
         self.criterion = nn.CrossEntropyLoss()
-        
-        # Use SGD with learning rate scheduling for better stability
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
-        
-        # Learning rate scheduler for better convergence
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='max', patience=3, factor=0.5, verbose=True
-        )
+        self.optimizer = optim.Adam(self.model.parameters())
 
         # Report model details
         total_params = sum(p.numel() for p in self.model.parameters())
