@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Hardware Monitor for DGX Spark System
+Hardware Monitor for AMD ROCm and DGX Spark System
 
-This utility provides comprehensive monitoring of the NVIDIA DGX Spark system
-including GPU performance, memory usage, temperature, and hardware specifications.
+This utility provides comprehensive monitoring of the system including:
+- AMD ROCm GPU performance and compatibility detection
+- NVIDIA CUDA GPU metrics (legacy support)
+- CPU, memory, disk monitoring
+- PyTorch device compatibility analysis
+
+Enhanced with smart GPU detection for AMD ROCm hardware.
 
 Usage:
     python hardware_monitor.py [--benchmark] [--duration SECONDS]
@@ -11,12 +16,18 @@ Usage:
 
 import argparse
 import json
+import os
 import platform
 import time
 from datetime import datetime
 from typing import Any, Dict
 
 import psutil
+
+# Import smart device manager for AMD ROCm compatibility
+import sys
+sys.path.append('/home/imjonezz/Desktop/metaflow_zenml_spark_framework/src/utils')
+from gpu_device_manager import get_device_with_fallback, GPUCompatibilityChecker
 
 try:
     from colorama import Fore, Style, init
@@ -99,24 +110,50 @@ class DGXSparkMonitor:
                     print(f"Warning: Could not extract GPU info for {gpu.name}: {e}")
                     continue
 
-        # Add PyTorch CUDA information if available
-        if TORCH_AVAILABLE and torch.cuda.is_available():
-            info["pytorch_cuda"] = {
-                "cuda_version": torch.version.cuda,
-                "device_count": torch.cuda.device_count(),
-                "current_device": torch.cuda.current_device()
-                if torch.cuda.is_available()
-                else None,
-                "device_name": torch.cuda.get_device_name(0)
-                if torch.cuda.device_count() > 0
-                else None,
-                "memory_allocated_gb": round(
-                    torch.cuda.memory_allocated() / (1024**3), 2
-                ),
-                "memory_reserved_gb": round(
-                    torch.cuda.memory_reserved() / (1024**3), 2
-                ),
+        # Add enhanced PyTorch device information (CUDA/ROCm)
+        if TORCH_AVAILABLE and torch:
+            info["pytorch_devices"] = {
+                "cuda_available": torch.cuda.is_available() if hasattr(torch, 'cuda') else False,
             }
+            
+            # Add ROCm-specific information
+            if hasattr(torch.version, 'hip'):
+                info["pytorch_devices"]["rocm_available"] = True
+                info["pytorch_devices"]["hip_version"] = torch.version.hip if hasattr(torch.version, 'hip') else None
+                info["pytorch_devices"]["rocm_arch"] = os.environ.get('PYTORCH_ROCM_ARCH', 'unknown')
+            else:
+                info["pytorch_devices"]["rocm_available"] = False
+                
+            # CUDA information (legacy support)
+            if torch.cuda.is_available() and hasattr(torch, 'cuda'):
+                info["pytorch_devices"]["cuda_version"] = torch.version.cuda if hasattr(torch.version, 'cuda') else None
+                info["pytorch_devices"]["device_count"] = torch.cuda.device_count()
+                info["pytorch_devices"]["current_device"] = torch.cuda.current_device() if hasattr(torch.cuda, 'current_device') else 0
+                info["pytorch_devices"]["device_name"] = torch.cuda.get_device_name(0) if hasattr(torch.cuda, 'get_device_name') and torch.cuda.device_count() > 0 else None
+                info["pytorch_devices"]["memory_allocated_gb"] = round(
+                    torch.cuda.memory_allocated() / (1024**3), 2
+                ) if hasattr(torch.cuda, 'memory_allocated') else None
+                info["pytorch_devices"]["memory_reserved_gb"] = round(
+                    torch.cuda.memory_reserved() / (1024**3), 2
+                ) if hasattr(torch.cuda, 'memory_reserved') else None
+            
+            # Add smart device compatibility analysis
+            try:
+                temp_model = torch.nn.Sequential(
+                    torch.nn.Linear(10, 5),  # Simple model for testing
+                )
+                
+                device, compatibility_info = get_device_with_fallback(
+                    model=temp_model,
+                    force_device="auto",
+                    batch_size=1
+                )
+                
+                info["pytorch_devices"]["smart_device_analysis"] = compatibility_info.get('compatibility_analysis', {})
+                info["pytorch_devices"]["recommended_device"] = str(device)
+                
+            except Exception as e:
+                info["pytorch_devices"]["smart_analysis_error"] = str(e)
 
         return info
 
@@ -204,22 +241,50 @@ class DGXSparkMonitor:
             },
         }
 
-        # GPU benchmark if available
-        if TORCH_AVAILABLE and torch.cuda.is_available():
+        # Enhanced GPU benchmark with AMD ROCm support
+        if TORCH_AVAILABLE and torch:
             try:
-                device = torch.device("cuda")
-                # GPU computation benchmark
+                # Use smart device manager for optimal GPU selection
+                temp_model = torch.nn.Sequential(torch.nn.Linear(10, 5))
+                device, _ = get_device_with_fallback(
+                    model=temp_model,
+                    force_device="auto",
+                    batch_size=1
+                )
+                
+                # GPU computation benchmark using optimal device
                 gpu_start = time.time()
-                x = torch.randn(1000, 1000).to(device)
-                y = torch.mm(x, x.t())
-                gpu_result = torch.sum(y).item()
-                gpu_end = time.time()
-
-                benchmark_results["gpu_benchmark"] = {
-                    "device": torch.cuda.get_device_name(0),
-                    "computation_time_ms": round((gpu_end - gpu_start) * 1000, 2),
-                    "result": gpu_result,
-                }
+                
+                if str(device) != "cpu":
+                    x = torch.randn(1000, 1000).to(device)
+                    y = torch.mm(x, x.t())
+                    gpu_result = torch.sum(y).item()
+                    gpu_end = time.time()
+                    
+                    benchmark_results["gpu_benchmark"] = {
+                        "device": str(device),
+                        "computation_time_ms": round((gpu_end - gpu_start) * 1000, 2),
+                        "result": gpu_result,
+                    }
+                    
+                    # Add ROCm-specific info if available
+                    if hasattr(torch.version, 'hip'):
+                        benchmark_results["gpu_benchmark"]["backend"] = "ROCm"
+                        benchmark_results["gpu_benchmark"]["hip_version"] = getattr(torch.version, 'hip', None)
+                    else:
+                        benchmark_results["gpu_benchmark"]["backend"] = "CUDA"
+                else:
+                    # CPU fallback benchmark
+                    x = torch.randn(500, 500)  # Smaller for CPU
+                    y = torch.mm(x, x.t())
+                    cpu_gpu_result = torch.sum(y).item()
+                    
+                    benchmark_results["cpu_fallback_benchmark"] = {
+                        "reason": "GPU incompatible or unavailable",
+                        "computation_time_ms": round((time.time() - gpu_start) * 1000, 2),
+                        "result": cpu_gpu_result,
+                    }
+                    
             except Exception as e:
                 benchmark_results["gpu_benchmark_error"] = str(e)
 
@@ -250,7 +315,7 @@ class DGXSparkMonitor:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="DGX Spark Hardware Monitor")
+    parser = argparse.ArgumentParser(description="Hardware Monitor (AMD ROCm + NVIDIA CUDA)")
     parser.add_argument(
         "--benchmark", action="store_true", help="Run hardware performance benchmarks"
     )
@@ -279,28 +344,83 @@ def main():
 
     if args.info:
         info = monitor.get_system_info()
-        print("\n=== DGX Spark System Information ===")
-        print(f"Platform: {info['system']['platform']}")
+        print("\n=== System Hardware Information ===")
+        
+        # Enhanced system info display
+        sys_info = info.get('system', {})
+        platform_dict = sys_info.get('platform', {})
+        
+        # Handle different platform formats
+        if isinstance(platform_dict, dict):
+            system_name = platform_dict.get('system', 'Unknown')
+            release = platform_dict.get('release', 'Unknown') 
+        else:
+            # Fallback for different formats
+            platform_str = str(platform_dict)
+            parts = platform_str.split(',')
+            system_name = parts[0] if len(parts) > 0 else 'Unknown'
+            release = parts[1].strip() if len(parts) > 1 else 'Unknown'
+        
+        print(f"Platform: {system_name} {release}")
         print(
-            f"CPU Cores (Physical/Logical): {info['system']['cpu_count_physical']}/{info['system']['cpu_count_logical']}"
+            f"CPU Cores (Physical/Logical): {sys_info.get('cpu_count_physical', 'N/A')}/{sys_info.get('cpu_count_logical', 'N/A')}"
         )
-        print(f"Memory: {info['system']['memory_total_gb']} GB")
+        print(f"Memory: {sys_info.get('memory_total_gb', 'N/A')} GB total, {sys_info.get('memory_available_gb', 'N/A')} GB available")
 
-        if "gpu" in info:
+        # Enhanced GPU information display
+        if "gpu" in info and info["gpu"]:
+            print("\n=== GPU Information ===")
             for i, gpu_data in enumerate(info["gpu"]):
                 print(f"GPU {i}:")
-                print(f"  Name: {gpu_data['name']}")
+                print(f"  Name: {gpu_data.get('name', 'Unknown')}")
                 if gpu_data.get("memory_total_mb"):
                     print(
-                        f"  Memory: {gpu_data['memory_used_mb']}/{gpu_data['memory_total_mb']} MB"
+                        f"  Memory: {gpu_data.get('memory_used_mb', 'N/A')}/{gpu_data.get('memory_total_mb', 'N/A')} MB"
                     )
                 if gpu_data.get("temperature_celsius"):
-                    print(f"  Temperature: {gpu_data['temperature_celsius']}°C")
+                    print(f"  Temperature: {gpu_data.get('temperature_celsius')}°C")
+                if gpu_data.get("power_usage_watts"):
+                    print(f"  Power: {gpu_data.get('power_usage_watts')}W")
 
-        if "pytorch_cuda" in info:
-            pc = info["pytorch_cuda"]
-            print(f"PyTorch CUDA: {pc.get('device_name', 'Unknown')}")
-            print(f"  CUDA Version: {pc.get('cuda_version', 'N/A')}")
+        # Enhanced PyTorch device information
+        if "pytorch_devices" in info:
+            print("\n=== PyTorch Device Information ===")
+            pt_info = info["pytorch_devices"]
+            
+            # ROCm information
+            if pt_info.get('rocm_available', False):
+                print("🦄 AMD ROCm Backend:")
+                if pt_info.get('hip_version'):
+                    print(f"  HIP Version: {pt_info['hip_version']}")
+                if pt_info.get('rocm_arch'):
+                    print(f"  Architecture: {pt_info['rocm_arch']}")
+                    
+            # CUDA information (legacy)
+            if pt_info.get('cuda_available', False):
+                print("🔥 NVIDIA CUDA Backend:")
+                if pt_info.get('device_name'):
+                    print(f"  Device: {pt_info['device_name']}")
+                if pt_info.get('cuda_version'):
+                    print(f"  CUDA Version: {pt_info['cuda_version']}")
+                if pt_info.get('device_count'):
+                    print(f"  Device Count: {pt_info['device_count']}")
+                    
+            # Smart device analysis
+            if 'smart_device_analysis' in pt_info:
+                print("🎯 Smart Device Analysis:")
+                analysis = pt_info['smart_device_analysis']
+                recommended_device = pt_info.get('recommended_device', 'unknown')
+                
+                print(f"  Recommended Device: {recommended_device}")
+                if analysis.get('is_compatible'):
+                    print("  ✅ Model compatibility: Good")
+                else:
+                    print("  ⚠️ Model compatibility: Issues detected")
+                    
+                if analysis.get('issues_found'):
+                    print("  Issues found:")
+                    for issue in analysis['issues_found']:
+                        print(f"    - {issue.get('operation', 'Unknown')}: {issue.get('details', 'No details')}")
 
         return
 
