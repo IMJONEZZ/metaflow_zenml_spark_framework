@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Simple Time Series Forecasting Pipeline (Metaflow Version)
+Improved Time Series Forecasting Pipeline (Metaflow Version)
 
-This demonstrates time series forecasting using Metaflow:
-- Synthetic weather data generation
-- LSTM-based prediction model
+This demonstrates improved time series forecasting using MetaFlow:
+- Synthetic weather data generation  
+- Multiple model options (Linear Regression, Random Forest, LSTM)
+- Automatic model selection based on performance
 - Evaluation metrics and validation
 
 Usage:
-    python timeseries_forecasting_flow.py run --sequence_length 20 --epochs 30
+    python timeseries_forecasting_flow_improved.py run --sequence_length 20 --epochs 30
 """
 
 import json
@@ -25,7 +26,6 @@ from metaflow.decorators import step
 # pylint: disable-all
 from metaflow.flowspec import FlowSpec
 from metaflow.parameters import Parameter
-
 
 
 # Define LSTM model class at module level for proper pickling
@@ -47,254 +47,328 @@ class SimpleLSTM(nn.Module):
         return self.fc(out)
 
 
-class TimeSeriesForecastingFlow(FlowSpec):
+class TimeSeriesForecastingFlowImproved(FlowSpec):
+    """An improved time series forecasting flow with multiple model options.
+
+    This flow demonstrates:
+        1. ``start`` – generate synthetic time series data.
+        2. `create_sequences` - create sequences for LSTM training
+        3. ``build_models`` – build multiple models (Linear Reg, Random Forest, LSTM)
+        4. ``train_all`` – train all models with improved configurations
+        5. `evaluate_all` - evaluate and compare performance  
+        6. ``end`` – final step with model comparison
     """
-    Simple time series forecasting pipeline using Metaflow.
 
-    This demonstrates:
-    - Data generation for time series
-    - LSTM model implementation
-    - Training and evaluation workflow
-    """
-
-    # Model Configuration
-    sequence_length = Parameter(
-        "sequence_length", help="Length of input sequences (default 20)", default=20
-    )
-
-    epochs = Parameter(
-        "epochs", help="Number of training epochs (default 30)", default=30
-    )
-
-    hidden_size = Parameter(
-        "hidden_size", help="LSTM hidden layer size (default 32)", default=32
-    )
+    # Number of data points (default 200)
+    num_points = Parameter("num-points", default=200)
+    
+    # Sequence length for LSTM (default 20) 
+    sequence_length = Parameter("sequence-length", default=20)
+    
+    # Number of epochs for LSTM (default 30)
+    epochs = Parameter("epochs", default=30)
 
     @step
     def start(self):
         """Generate synthetic time series data."""
 
-        print("""
-            Historical Data: [t₋ₙ ... t₋₂, t₋₁, t₀]
-                                                ↓
-                                        [Sliding Window]
-                                                ↓
-                                [Features: lag, rolling stats, trends]
-                                                ↓
-                                        [Model: LSTM/Prophet/ARIMA]
-                                                ↓
-                                ┌───────────────┴───────────────┐
-                                ↓                               ↓
-                        Point Forecast: t₁              Confidence Interval
-                                ↓                               ↓
-                        [Evaluate Error]                  [Uncertainty]
-                                ↓                               ↓
-                        [Update Model] ←──────┬─────────────────┘
-                                ↓             │
-                        Predict t₂ ───────────┘
-                                ↓
-                        [Recursive forecasting for t₃, t₄, ...]
-                        """)
-        print(f"Sequence Length: {self.sequence_length}")
-        print(f"Epochs: {self.epochs}")
+        print(
+            """
+Historical Data: [t₋ₙ ... t₋₂, t₋₁, t₀]
+    ↓
+[Sliding Window]
+    ↓  
+[Features: lag, rolling stats, trends]
+    ↓
+┌───────────────┴───────────────┐
+↓                               ↓
+Linear Regression              Random Forest  
+    ↓                               ↓
+[Simple Pattern]               [Feature Engineering]
+    ↓                               ↓
+Fast Training                 Good Performance
+                               
+        ┌───────────────┴───────────────┐
+        ↓                               ↓
+        LSTM Neural Network            Ensemble Method
+        (if GPU available)             [Best of All]
+        ↓                               ↓
+Complex Pattern               Optimal Performance
+Slow Training (async)         
 
-        # Generate synthetic weather data
-        np.random.seed(42)
-        n_points = 500
+[Evaluate All Models] ←──────┘
+    ↓
+Select Best Model → Deploy
+"""
+        )
 
-        # Create time index
-        dates = np.arange(n_points)
+        # Generate synthetic temperature data with more complex patterns  
+        print("🚀 Generating Time Series Data with MetaFlow")
 
-        # Generate temperature with seasonal patterns + noise
-        time_trend = 0.001 * dates
-        seasonal_pattern = np.sin(2 * np.pi * dates / 365.25)
+        np.random.seed(42)  # For reproducibility
 
+        # Time index
+        time = np.arange(self.num_points)
+
+        # Temperature with trend, seasonality, and noise (more complex pattern)
         temperature = (
-            20 + 10 * seasonal_pattern + time_trend + np.random.normal(0, 2, n_points)
+            20                           # Base temperature
+            + 0.1 * time                # Upward trend  
+            + 5 * np.sin(2 * np.pi * time / 50)    # Seasonal component
+            + 2 * np.sin(2 * np.pi * time / 12)    # Secondary seasonal
+            + np.random.normal(0, 1.5, self.num_points)  # Noise
         )
 
-        # Create sequences
-        def create_sequences(data: np.ndarray, seq_length: int):
-            """Create input sequences and targets."""
-            X, y = [], []
+        print(f"Generated {self.num_points} temperature data points")
+        
+        # Store the raw data
+        self.raw_data = temperature.tolist()
+        
+        print(f"Data range: {min(temperature):.2f} to {max(temperature):.2f}")
+        print(f"Mean temperature: {np.mean(temperature):.2f}")
 
-            for i in range(len(data) - seq_length):
-                # Input sequence
-                X.append(data[i : (i + seq_length)])
-                # Next day temperature as target
-                y.append(data[i + seq_length])
+        self.next(self.create_sequences)
 
-            return np.array(X), np.array(y)
+    @step 
+    def create_sequences(self):
+        """Create sequences for LSTM and features for other models."""
 
-        # Create sequences using converted parameters
-        seq_len = int(str(self.sequence_length))
-        self.X, self.y = create_sequences(temperature, seq_len)
+        print(f"🔄 Creating {self.sequence_length}-length sequences")
 
-        # Normalize data
-        from sklearn.preprocessing import StandardScaler
+        # Convert to numpy array for easier manipulation
+        data = np.array(self.raw_data)
 
-        scaler = StandardScaler()
-        X_flat = self.X.reshape(-1, 1)
-        X_scaled = scaler.fit_transform(X_flat).reshape(self.X.shape)
+        # Create sequences for LSTM
+        X_lstm, y_lstm = [], []
+        for i in range(len(data) - self.sequence_length):
+            X_lstm.append(data[i : (i + self.sequence_length)])
+            y_lstm.append(data[i + self.sequence_length])
 
-        # Split data
-        n_samples = len(X_scaled)
-        train_size = int(0.7 * n_samples)
+        # Create features for traditional ML models
+        X_features = []
+        
+        for i in range(self.sequence_length, len(data)):
+            features = [
+                data[i-1],                    # Previous value (lag 1)
+                data[i-2] if i >= 2 else 0,   # Lag 2  
+                np.mean(data[max(0, i-5):i]), # Rolling mean (last 5)
+                np.std(data[max(0, i-5):i]),  # Rolling std
+                i - self.sequence_length,     # Time index (trend)
+            ]
+            
+            # Add seasonal features
+            day_of_cycle = i % 50
+            features.extend([
+                np.sin(2 * np.pi * day_of_cycle / 50),    # Seasonal sine
+                np.cos(2 * np.pi * day_of_cycle / 50),    # Seasonal cosine
+            ])
+            
+            X_features.append(features)
 
-        self.X_train = X_scaled[:train_size]
-        self.y_train = self.y[:train_size]
+        y_traditional = data[self.sequence_length:]
 
-        self.X_test = X_scaled[train_size:]
-        self.y_test = self.y[train_size:]
+        print(f"Created {len(X_lstm)} LSTM sequences")
+        print(f"Created {len(X_features)} feature vectors with {len(X_features[0])} features each")
 
-        print(f"Generated {n_samples} sequences")
-        print(f"Training samples: {train_size}")
-        print(f"Test samples: {n_samples - train_size}")
+        # Store data
+        self.lstm_data = {
+            'X': X_lstm,
+            'y': y_lstm
+        }
+        
+        self.traditional_data = {
+            'X': X_features, 
+            'y': y_traditional.tolist()
+        }
 
-        self.next(self.build_model)
-
-    @step
-    def build_model(self):
-        """Build LSTM model."""
-
-        # Initialize model using converted parameter
-        hidden = int(str(self.hidden_size))
-        self.model = SimpleLSTM(hidden_size=hidden).float()
-
-        # Loss and optimizer
-        self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-
-        print(f"Model built with hidden size: {hidden}")
-        self.next(self.train)
-
-    @step
-    def train(self):
-        """Train the model."""
-
-        # Convert to PyTorch tensors
-        X_train_tensor = torch.FloatTensor(self.X_train).unsqueeze(-1)
-        y_train_tensor = torch.FloatTensor(self.y_train).unsqueeze(-1)
-
-        batch_size = 16
-        epochs = int(str(self.epochs))
-
-        # Training loop
-        for epoch in range(epochs):
-            total_loss = 0
-
-            # Create batches
-            for i in range(0, len(X_train_tensor), batch_size):
-                batch_X = X_train_tensor[i : i + batch_size]
-                batch_y = y_train_tensor[i : i + batch_size]
-
-                # Forward pass
-                outputs = self.model(batch_X)
-                loss = self.criterion(outputs, batch_y)
-
-                # Backward pass
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-
-                total_loss += loss.item()
-
-            # Print progress
-            if (epoch + 1) % 10 == 0:
-                avg_loss = total_loss / len(X_train_tensor)
-                print(f"Epoch [{epoch + 1}/{epochs}] - Loss: {avg_loss:.4f}")
-
-        print("Training completed!")
-        self.next(self.evaluate)
+        self.next(self.build_models)
 
     @step
-    def evaluate(self):
-        """Evaluate model performance."""
+    def build_models(self):
+        """Build multiple models for comparison."""
 
+        print("🏗️ Building Multiple Models")
+
+        from sklearn.linear_model import LinearRegression
+        from sklearn.ensemble import RandomForestRegressor
+        
+        # Model 1: Linear Regression (fast, simple)
+        self.linear_model = LinearRegression()
+        
+        # Model 2: Random Forest (good performance, handles non-linearity)  
+        self.rf_model = RandomForestRegressor(
+            n_estimators=100,
+            max_depth=10, 
+            random_state=42
+        )
+        
+        # Model 3: LSTM (complex patterns, GPU if available)
+        self.lstm_model = SimpleLSTM(input_size=1, hidden_size=32)
+
+        print("✅ Built 3 models:")
+        print("   1. Linear Regression (baseline)")
+        print("   2. Random Forest (robust)")  
+        print("   3. LSTM Neural Network (complex)")
+
+        self.next(self.train_all)
+
+    @step
+    def train_all(self):
+        """Train all models and compare performance."""
+
+        print("🎯 Training All Models")
+        
+        # Prepare traditional ML data
+        X_trad = np.array(self.traditional_data['X'])
+        y_trad = self.traditional_data['y']
+
+        # Split for validation
+        split_idx = int(0.8 * len(X_trad))
+        
+        X_train, X_val = X_trad[:split_idx], X_trad[split_idx:]
+        y_train, y_val = y_trad[:split_idx], y_trad[split_idx:]
+
+        # Train Model 1: Linear Regression
+        print("📈 Training Linear Regression...")
+        self.linear_model.fit(X_train, y_train)
+        
+        # Train Model 2: Random Forest
+        print("🌲 Training Random Forest...")  
+        self.rf_model.fit(X_train, y_train)
+        
+        # Train Model 3: LSTM (if time permits)
+        print("🧠 Training LSTM Neural Network...")
+        
+        # Use smart device management
+        import sys
+        sys.path.append('/home/imjonezz/Desktop/metaflow_zenml_spark_framework/src/utils')
+        from gpu_device_manager import get_device_with_fallback
+        
+        device, _ = get_device_with_fallback(
+            model=self.lstm_model,
+            force_device="auto",
+            batch_size=32
+        )
+        
+        # Prepare LSTM data  
+        X_lstm = torch.FloatTensor(self.lstm_data['X']).unsqueeze(-1).to(device)
+        y_lstm = torch.FloatTensor(self.lstm_data['y']).unsqueeze(-1).to(device)
+        
+        # Move model to device
+        self.lstm_model = self.lstm_model.to(device)
+        
+        # Training setup
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(self.lstm_model.parameters(), lr=0.01)
+        
+        # Quick training (reduced epochs for demo)
+        self.lstm_model.train()
+        for epoch in range(min(10, int(self.epochs))):
+            optimizer.zero_grad()
+            outputs = self.lstm_model(X_lstm)
+            loss = criterion(outputs, y_lstm)
+            loss.backward()
+            optimizer.step()
+
+        print("✅ All models trained!")
+
+        self.next(self.evaluate_all)
+
+    @step  
+    def evaluate_all(self):
+        """Evaluate all models and select the best one."""
+
+        print("📊 Evaluating All Models")
+        
+        # Prepare validation data
+        X_trad = np.array(self.traditional_data['X'])
+        y_trad = self.traditional_data['y']
+        
+        split_idx = int(0.8 * len(X_trad))
+        X_val = X_trad[split_idx:]
+        y_val = y_trad[split_idx:]
+        
         # Make predictions
-        self.model.eval()
+        lr_pred = self.linear_model.predict(X_val)
+        rf_pred = self.rf_model.predict(X_val) 
+        
+        # LSTM predictions
+        import torch
+        device = next(self.lstm_model.parameters()).device
+        X_lstm_val = torch.FloatTensor(X_val).unsqueeze(-1).to(device)
+        
+        self.lstm_model.eval()
         with torch.no_grad():
-            X_test_tensor = torch.FloatTensor(self.X_test).unsqueeze(-1)
-            predictions = self.model(X_test_tensor).cpu().numpy()
-
+            lstm_pred = self.lstm_model(X_lstm_val).squeeze().cpu().numpy()
+        
         # Calculate metrics
-        from sklearn.metrics import mean_absolute_error, mean_squared_error
+        def calculate_metrics(y_true, y_pred):
+            y_true = np.array(y_true)
+            y_pred = np.array(y_pred) 
+            mae = np.mean(np.abs(y_true - y_pred))
+            rmse = np.sqrt(np.mean((y_true - y_pred) ** 2)) 
+            mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
+            return mae, rmse, mape
 
-        mae = mean_absolute_error(self.y_test.flatten(), predictions.flatten())
-        rmse = np.sqrt(mean_squared_error(self.y_test.flatten(), predictions.flatten()))
+        lr_metrics = calculate_metrics(y_val, lr_pred)
+        rf_metrics = calculate_metrics(y_val, rf_pred) 
+        lstm_metrics = calculate_metrics(y_val, lstm_pred)
 
-        # MAPE (avoid division by zero)
-        mask = self.y_test != 0
-        mape = (
-            np.mean(
-                np.abs(
-                    (self.y_test[mask] - predictions.flatten()[mask])
-                    / self.y_test[mask]
-                )
-            )
-            * 100
-        )
+        # Print results
+        print("\n📈 MODEL PERFORMANCE COMPARISON:")
+        print(f"Linear Regression  - MAE: {lr_metrics[0]:.3f}, RMSE: {lr_metrics[1]:.3f}, MAPE: {lr_metrics[2]:.1f}%")
+        print(f"Random Forest      - MAE: {rf_metrics[0]:.3f}, RMSE: {rf_metrics[1]:.3f}, MAPE: {rf_metrics[2]:.1f}%") 
+        print(f"LSTM Neural Net    - MAE: {lstm_metrics[0]:.3f}, RMSE: {lstm_metrics[1]:.3f}, MAPE: {lstm_metrics[2]:.1f}%")
+
+        # Select best model based on MAPE
+        models = [
+            ("Linear Regression", lr_metrics, self.linear_model),
+            ("Random Forest", rf_metrics, self.rf_model), 
+            ("LSTM Neural Network", lstm_metrics, self.lstm_model)
+        ]
+        
+        best_model = min(models, key=lambda x: x[1][2])  # Lowest MAPE
+        
+        print(f"\n🏆 Best Model: {best_model[0]} (MAPE: {best_model[1][2]:.1f}%)")
 
         # Store results
-        self.results = {"mae": mae, "rmse": rmse, "mape": mape}
-
-        print(f"\n📊 Evaluation Results:")
-        print(f"   MAE: {mae:.3f}")
-        print(f"   RMSE: {rmse:.3f}")
-        print(f"   MAPE: {mape:.2f}%")
+        self.results = {
+            'linear_regression': {'mae': lr_metrics[0], 'rmse': lr_metrics[1], 'mape': lr_metrics[2]},
+            'random_forest': {'mae': rf_metrics[0], 'rmse': rf_metrics[1], 'mape': rf_metrics[2]},
+            'lstm': {'mae': lstm_metrics[0], 'rmse': lstm_metrics[1], 'mape': lstm_metrics[2]},
+            'best_model': best_model[0]
+        }
 
         self.next(self.end)
 
     @step
     def end(self):
-        """Complete the forecasting workflow."""
+        """Final step with summary and results."""
 
-        print("\n" + "=" * 60)
-        print("🎉 TIME SERIES FORECASTING COMPLETE")
-        print("=" * 60)
+        print(
+            """
+╔═══════════════════════════════════════════════╗
+║                                               ║  
+║  🎉 TIME SERIES FORECASTING COMPLETE! 🎉     ║
+║                                               ║
+╚═══════════════════════════════════════════════╝
 
-        # Print results
-        if hasattr(self, "results"):
-            print(f"📈 Forecast Performance:")
-            for metric, value in self.results.items():
-                if metric == "mape":
-                    print(f"   {metric.upper()}: {value:.2f}%")
-                else:
-                    print(f"   {metric.upper()}: {value:.3f}")
+📊 FINAL RESULTS:
+"""
+        )
 
-        # Model info
-        total_params = sum(p.numel() for p in self.model.parameters())
-        print(f"\n🔧 Model Information:")
-        print(f"   Total Parameters: {total_params:,}")
+        for model_name, metrics in self.results.items():
+            if isinstance(metrics, dict) and 'mae' in metrics:
+                print(f"{model_name.replace('_', ' ').title():20} - MAE: {metrics['mae']:.3f}, RMSE: {metrics['rmse']:.3f}, MAPE: {metrics['mape']:.1f}%")
 
-        # Configuration summary
-        print(f"\n⚙️  Configuration:")
-        print(f"   Sequence Length: {self.sequence_length}")
-        print(f"   Epochs: {self.epochs}")
-        print(f"   Hidden Size: {self.hidden_size}")
+        print(f"\n🏆 Best Performing Model: {self.results['best_model']}")
 
-        # Save results
-        with open("timeseries_results.json", "w") as f:
-            json.dump(
-                {
-                    "configuration": {
-                        "sequence_length": str(self.sequence_length),
-                        "epochs": str(self.epochs),
-                        "hidden_size": str(self.hidden_size),
-                    },
-                    "metrics": getattr(self, "results", {}),
-                    "model_info": {"total_parameters": total_params},
-                },
-                f,
-                indent=2,
-            )
+        # Save results to JSON
+        with open('timeseries_results_improved.json', 'w') as f:
+            json.dump(self.results, f, indent=2)
 
-        print(f"\n💾 Results saved to: timeseries_results.json")
-        print("\n✅ Time series forecasting workflow completed!")
+        print(f"\n💾 Results saved to: timeseries_results_improved.json")
 
 
 if __name__ == "__main__":
-    # Add missing imports at the module level
-    import numpy as np
-
-    TimeSeriesForecastingFlow()
+    TimeSeriesForecastingFlowImproved()

@@ -35,7 +35,7 @@ class NeuralNetFlow(FlowSpec):
         2. ``build_model`` – define a small convolutional neural network,
            loss function, optimizer and move everything to the appropriate device.
         3. ``train`` – train the model for the specified number of epochs.
-        4. ``end`` – final step indicating completion with performance report.
+        4. ``end` ` – final step indicating completion with performance report.
     """
 
     # Number of training epochs (default 10)
@@ -89,7 +89,7 @@ class NeuralNetFlow(FlowSpec):
             torch.nn.MaxPool2d(2),
         )
         
-        # Use our smart device manager
+        # Use our smart device manager - Metaflow parameters are immutable, so use them directly
         self.device, device_info = get_device_with_fallback(
             model=temp_model,
             force_device=self.gpu_strategy if hasattr(self, 'gpu_strategy') else "auto",
@@ -109,8 +109,8 @@ class NeuralNetFlow(FlowSpec):
                     f"✅ Model is GPU compatible - using optimal acceleration")
 
         self.num_classes = 10
-        # Use batch size from parameter or default to smaller value for memory safety
-        self.batch_size = int(getattr(self, 'batch_size', 64))
+        # FIXED: Use batch size directly from parameter (Metaflow parameters are immutable)
+        effective_batch_size = int(getattr(self, 'batch_size', 64))
         
         # Normalization values for MNIST (mean=0.1307, std=0.3081) – standard practice
         transform = transforms.Compose(
@@ -131,10 +131,10 @@ class NeuralNetFlow(FlowSpec):
 
         # Reduced num_workers for stability on AMD hardware  
         self.train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=0
+            train_dataset, batch_size=effective_batch_size, shuffle=True, num_workers=0
         )
         self.test_loader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=0
+            test_dataset, batch_size=effective_batch_size, shuffle=False, num_workers=0
         )
 
         print(
@@ -170,9 +170,16 @@ class NeuralNetFlow(FlowSpec):
         # Move model to the selected device (CPU or GPU)
         self.model = self.model.to(self.device)
 
-        # Loss and optimizer – using Adam for simplicity (same as Keras default "adam")
+        # Loss and optimizer – improved training configuration
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters())
+        
+        # Use SGD with learning rate scheduling for better stability
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
+        
+        # Learning rate scheduler for better convergence
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, mode='max', patience=3, factor=0.5, verbose=True
+        )
 
         # Report model details
         total_params = sum(p.numel() for p in self.model.parameters())

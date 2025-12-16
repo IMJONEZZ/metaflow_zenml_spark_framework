@@ -17,6 +17,11 @@ from metaflow.decorators import step
 from metaflow.flowspec import FlowSpec
 from metaflow.parameters import Parameter
 
+# Import smart device manager for AMD GPU compatibility  
+import sys
+sys.path.append('/home/imjonezz/Desktop/metaflow_zenml_spark_framework/src/utils')
+from gpu_device_manager import get_device_with_fallback
+
 try:
     from colorama import Fore, Style, init
 
@@ -404,7 +409,7 @@ class MetaflowParameterSweepFlow(FlowSpec):
     def _train_single_model(
         self, run_id: str, learning_rate: float, batch_size: int, model_type: str
     ) -> dict:
-        """Train a single model with given hyperparameters."""
+        """Train a single model with given hyperparameters using smart device management."""
 
         import time
 
@@ -416,8 +421,22 @@ class MetaflowParameterSweepFlow(FlowSpec):
             import torch.nn as nn
             import torch.optim as optim
 
-            # Initialize model
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            # Initialize model and smart device selection
+            temp_model = (
+                SimpleModel(input_size=20)
+                if model_type == "simple"
+                else DeepModel(input_size=20)
+            )
+            
+            device, device_info = get_device_with_fallback(
+                model=temp_model,
+                force_device="auto",
+                batch_size=batch_size
+            )
+            
+            print(f"🚀 Training run {run_id} on {str(device)}")
+            
+            # Create the actual model and move to device
             model = (
                 SimpleModel(input_size=20).to(device)
                 if model_type == "simple"
@@ -428,7 +447,7 @@ class MetaflowParameterSweepFlow(FlowSpec):
             criterion = nn.CrossEntropyLoss()
             optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-            # Convert data to tensors
+            # Convert data to tensors and move to device
             X_train_tensor = torch.FloatTensor(self.X_train).to(device)
             y_train_tensor = torch.LongTensor(self.y_train).to(device)
             X_val_tensor = torch.FloatTensor(self.X_val).to(device)
@@ -501,6 +520,7 @@ class MetaflowParameterSweepFlow(FlowSpec):
                 "model_type": model_type,
                 "learning_rate": learning_rate,
                 "batch_size": batch_size,
+                "device": str(device),
                 "final_train_acc": final_train_acc,
                 "final_val_acc": final_val_acc,
                 "training_time": training_time,
