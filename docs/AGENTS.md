@@ -1,4 +1,7 @@
 # AGENTS
+## Research
+- For your convenience, a searxng endpoint has been created at http://192.168.1.36:4000
+- Use this endpoint to search anything you'd need to find information on in order to get a list of other relevant urls to fetch. This saves time vs guessing at relevant urls.
 ## Build / Run
 - `pixi run python gradient_boosted_trees_flow.py run`
 - `pixi run python neural_network_zen.py`

@@ -191,7 +191,14 @@ class NeuralNetFlow(FlowSpec):
 
         # Loss and optimizer – improved training configuration
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters())
+        
+        # Use SGD with learning rate scheduling for better stability
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.01, momentum=0.9)
+        
+        # Learning rate scheduler for better convergence
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, mode='max', patience=3, factor=0.5
+        )
 
         # Report model details
         total_params = sum(p.numel() for p in self.model.parameters())
