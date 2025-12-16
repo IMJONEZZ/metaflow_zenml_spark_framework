@@ -1,0 +1,15 @@
+{
+  "configuration": {
+    "sequence_length": "20",
+    "epochs": "30",
+    "hidden_size": "32"
+  },
+  "metrics": {
+    "mae": 27.184551505008656,
+    "rmse": 27.459866204375647,
+    "mape": 100.11433490448549
+  },
+  "model_info": {
+    "total_parameters": 4513
+  }
+}

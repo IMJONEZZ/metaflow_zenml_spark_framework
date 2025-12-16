@@ -7,7 +7,8 @@ from metaflow.decorators import step
 from metaflow.flowspec import FlowSpec
 from metaflow.parameters import Parameter
 
-    init(autoreset=True)
+try:
+    from colorama import Fore, Style, init
 except ImportError:
     # Fallback if colorama is not available
     class Fore:
