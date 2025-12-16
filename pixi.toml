@@ -5,6 +5,42 @@ platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
+# MetaFlow development server tasks
+metaflow-dev-up = "pixi run metaflow-dev up"
+# Simple port check tasks for MetaFlow
+metaflow-check-port-3000 = { cmd = "echo \"Checking localhost:3000...\" && timeout 30 curl -s http://localhost:3000 >/dev/null && echo \"✓ localhost:3000 is responding\" || (echo \"✗ localhost:3000 failed to respond within 30s\" && exit 1)" }
+metaflow-check-port-10350 = { cmd = "echo \"Checking localhost:10350...\" && timeout 30 curl -s http://localhost:10350 >/dev/null && echo \"✓ localhost:10350 is responding\" || (echo \"✗ localhost:10350 failed to respond within 30s\" && exit 1)" }
+metaflow-check-port-8083 = { cmd = "echo \"Checking localhost:8083...\" && timeout 30 curl -s http://localhost:8083 >/dev/null && echo \"✓ localhost:8083 is responding\" || (echo \"✗ localhost:8083 failed to respond within 30s\" && exit 1)" }
+
+# Combined wait task that depends on all port checks
+metaflow-dev-wait = { cmd = "echo \"Verifying MetaFlow dev stack deployment...\" && echo \"🎉 All MetaFlow services are deployed and responding!\"", depends-on = ["metaflow-check-port-3000", "metaflow-check-port-10350", "metaflow-check-port-8083"] }
+metaflow-dev-shell = { cmd = "pixi run metaflow-dev shell", depends-on = ["metaflow-dev-wait"] }
+
+# Workflow execution tasks with dependencies
+gradient_boosted_trees_flow = { cmd = "python src/workflows/metaflow/gradient_boosted_trees_flow.py run" }
+neural_network_flow = { cmd = "python src/workflows/metaflow/neural_network_flow.py run", depends-on = ["gradient_boosted_trees_flow"] }
+nlp_pipeline_flow = { cmd = "python src/workflows/metaflow/nlp_pipeline_flow.py run", depends-on = ["neural_network_flow"] }
+parallel_branches_flow = { cmd = "python src/workflows/metaflow/parallel_branches_flow.py run", depends-on = ["nlp_pipeline_flow"] }
+timeseries_forecasting_flow = { cmd = "python src/workflows/metaflow/timeseries_forecasting_flow.py run", depends-on = ["parallel_branches_flow"] }
+tinygrad_llm_flow = { cmd = "python src/workflows/metaflow/tinygrad_llm_flow.py run", depends-on = ["timeseries_forecasting_flow"] }
+
+# Final cleanup task
+metaflow-dev-down = "pixi run metaflow-dev down"
+
+# ZenML development server tasks
+zenml-server-up = "pixi run zenml login --local --ip-address 0.0.0.0"
+zenml-server-wait = { cmd = "echo \"Verifying ZenML server deployment...\" && echo \"Checking localhost:8080...\" && timeout 30 curl -s http://localhost:8237 >/dev/null && echo \"✓ ZenML server is responding on port 8080\" || (echo \"✗ ZenML server failed to respond within 30s\" && exit 1) && echo \"🎉 ZenML server is deployed and responding!\"", depends-on = ["zenml-server-up"] }
+
+# ZenML workflow execution tasks with dependencies
+gradient_boosted_trees_zen = { cmd = "python src/workflows/zenml/gradient_boosted_trees_zen.py", depends-on = ["zenml-server-wait"] }
+neural_network_zen = { cmd = "python src/workflows/zenml/neural_network_zen.py", depends-on = ["gradient_boosted_trees_zen"] }
+nlp_pipeline_zen = { cmd = "python src/workflows/zenml/nlp_pipeline_zen.py", depends-on = ["neural_network_zen"] }
+parallel_branches_zen = { cmd = "python src/workflows/zenml/parallel_branches_zen.py", depends-on = ["nlp_pipeline_zen"] }
+timeseries_forecasting_zen = { cmd = "python src/workflows/zenml/timeseries_forecasting_zen.py", depends-on = ["parallel_branches_zen"] }
+tinygrad_llm_zen = { cmd = "python src/workflows/zenml/tinygrad_llm_zen.py", depends-on = ["timeseries_forecasting_zen"] }
+
+# ZenML cleanup task
+zenml-server-down = "pixi run zenml logout"
 
 [activation.env]
     # Core ROCm Configuration

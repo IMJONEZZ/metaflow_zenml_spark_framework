@@ -9,7 +9,6 @@ from metaflow.parameters import Parameter
 
 try:
     from colorama import Fore, Style, init
-    init(autoreset=True)
 except ImportError:
     # Fallback if colorama is not available
     class Fore:
